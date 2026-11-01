@@ -1,16 +1,25 @@
 {
   "name": "deni95",
-  "owner": { "name": "Deni95" },
-  "metadata": { "description": "Claude Code plugins collected by Deni95" },
+  "owner": {
+    "name": "Deni95"
+  },
+  "metadata": {
+    "description": "Claude Code plugins collected by Deni95"
+  },
   "plugins": [
     {
       "name": "anatomy",
-      "source": { "source": "github", "repo": "wheresryan22/anatomy" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/wheresryan22/anatomy.git"
+      },
       "description": "Interactive isometric SVG figures that explain a technical idea as a real machine (by wheresryan22, MIT)",
       "homepage": "https://github.com/wheresryan22/anatomy",
       "license": "MIT",
       "strict": false,
-      "skills": ["./"]
+      "skills": [
+        "./"
+      ]
     }
   ]
 }
