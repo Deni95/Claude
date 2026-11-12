@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b0b0f">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>Тёмная Чаща</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <button id="pauseBtn" class="round small" aria-label="Пауза">❚❚</button>
+  <div id="right">
+    <button id="craftBtn" class="round mid" aria-label="Создание">⚒</button>
+    <button id="actBtn" class="round big">Действие</button>
+  </div>
+  <div id="inv"></div>
+  <div id="popup" class="hidden"></div>
+  <div id="craft" class="panel hidden">
+    <div class="phead"><span>Создание</span><button id="craftClose" class="x">✕</button></div>
+    <div id="recipes"></div>
+  </div>
+</div>
+
+<div id="menu" class="screen">
+  <h1>Тёмная Чаща</h1>
+  <p class="sub">Собирай, мастери, ешь — и никогда не оставайся в темноте.</p>
+  <div class="btns">
+    <button id="contBtn" class="mbtn hidden">Продолжить</button>
+    <button id="newBtn" class="mbtn">Новая игра</button>
+  </div>
+  <div class="help">
+    <b>Управление:</b> левая половина экрана — джойстик. Удерживай <b>«Действие»</b>, чтобы идти к ближайшему предмету и собирать его, рубить, атаковать.
+    <b>⚒</b> — меню создания. Нажми на ячейку инвентаря — съесть, надеть, приготовить, подбросить в костёр.<br>
+    <b>Ночью без света тебя убьёт тьма.</b> Каждую третью ночь приходят волки.
+  </div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <h2>Пауза</h2>
+  <div class="btns">
+    <button id="resumeBtn" class="mbtn">Продолжить</button>
+    <button id="saveExitBtn" class="mbtn">Сохранить и выйти</button>
+  </div>
+</div>
+
+<div id="over" class="screen hidden">
+  <h2>Ты погиб</h2>
+  <p id="overText" class="sub"></p>
+  <div class="btns"><button id="againBtn" class="mbtn">Ещё раз</button></div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
