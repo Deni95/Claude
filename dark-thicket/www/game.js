@@ -1,7 +1,7 @@
 'use strict';
 (() => {
 // ============================================================
-//  ТЁМНАЯ ЧАЩА — survival game
+//  ШЁПОТ ЛЕСА — survival game
 // ============================================================
 const WORLD = 3000;
 const DAY_LEN = 240;            // seconds per full day
@@ -89,6 +89,106 @@ const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const rand = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[(Math.random() * arr.length) | 0];
+
+// ============================================================
+//  Sound (fully synthesized with WebAudio — no audio files)
+// ============================================================
+const Sfx = (() => {
+  let ac = null, master, nbuf, windF, windG, fireG, muted = false;
+  let tBird = 3, tCricket = 2, tNote = 2, tCrackle = 0, tStep = 0, tGust = 0;
+  try { muted = localStorage.getItem('darkthicket_muted') === '1'; } catch (_) {}
+  function init() {
+    if (ac) { ac.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+    ac = new AC();
+    master = ac.createGain(); master.gain.value = muted ? 0 : 0.7; master.connect(ac.destination);
+    nbuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
+    const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const loop = () => { const n = ac.createBufferSource(); n.buffer = nbuf; n.loop = true; n.start(); return n; };
+    // wind bed
+    windF = ac.createBiquadFilter(); windF.type = 'lowpass'; windF.frequency.value = 350;
+    windG = ac.createGain(); windG.gain.value = 0.05; loop().connect(windF); windF.connect(windG); windG.connect(master);
+    // fire bed
+    const ff = ac.createBiquadFilter(); ff.type = 'bandpass'; ff.frequency.value = 900; ff.Q.value = 0.6;
+    fireG = ac.createGain(); fireG.gain.value = 0; loop().connect(ff); ff.connect(fireG); fireG.connect(master);
+  }
+  function tone(freq, dur, o = {}) {
+    if (!ac) return;
+    const t = ac.currentTime + (o.delay || 0), osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = o.type || 'sine'; osc.frequency.setValueAtTime(freq, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+    const v = o.vol ?? 0.15;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + (o.attack || 0.008)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g); g.connect(master); osc.start(t); osc.stop(t + dur + 0.05);
+  }
+  function noise(dur, o = {}) {
+    if (!ac) return;
+    const t = ac.currentTime + (o.delay || 0), n = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    n.buffer = nbuf; n.loopStart = Math.random(); f.type = o.type || 'bandpass'; f.frequency.value = o.freq || 1000; f.Q.value = o.q || 1;
+    const v = o.vol ?? 0.2;
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    n.connect(f); f.connect(g); g.connect(master); n.start(t, Math.random() * 1.5); n.stop(t + dur + 0.05);
+  }
+  const S = {
+    pick() { noise(0.09, { freq: 3000, type: 'highpass', vol: 0.12 }); tone(620, 0.09, { to: 940, vol: 0.08 }); },
+    pickup() { tone(740, 0.07, { vol: 0.1 }); tone(1100, 0.1, { vol: 0.1, delay: 0.06 }); },
+    chop() { noise(0.12, { freq: 700, type: 'lowpass', vol: 0.35 }); tone(170, 0.1, { to: 80, type: 'triangle', vol: 0.25 }); },
+    fall() { noise(0.5, { freq: 400, type: 'lowpass', vol: 0.35 }); tone(120, 0.4, { to: 50, type: 'triangle', vol: 0.3 }); },
+    mine() { tone(1500, 0.05, { type: 'triangle', vol: 0.18 }); tone(2300, 0.08, { type: 'sine', vol: 0.08 }); noise(0.08, { freq: 2500, vol: 0.2 }); },
+    crumble() { for (let i = 0; i < 4; i++) noise(0.12, { freq: 500 + i * 200, vol: 0.25, delay: i * 0.06 }); },
+    hit() { noise(0.1, { freq: 500, vol: 0.3 }); tone(160, 0.1, { to: 70, type: 'square', vol: 0.08 }); },
+    kill() { tone(500, 0.25, { to: 150, type: 'triangle', vol: 0.15 }); },
+    hurt() { tone(320, 0.22, { to: 120, type: 'sawtooth', vol: 0.14 }); noise(0.1, { freq: 300, vol: 0.2 }); },
+    dark() { tone(70, 0.7, { type: 'sawtooth', vol: 0.2 }); tone(74, 0.7, { type: 'sawtooth', vol: 0.2 }); noise(0.3, { freq: 2000, type: 'highpass', vol: 0.12 }); },
+    eat() { noise(0.07, { freq: 900, vol: 0.2 }); noise(0.07, { freq: 1100, vol: 0.2, delay: 0.13 }); noise(0.07, { freq: 800, vol: 0.2, delay: 0.26 }); },
+    craft() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.25, { type: 'triangle', vol: 0.12, delay: i * 0.07 })); },
+    fire() { noise(0.4, { freq: 600, type: 'lowpass', vol: 0.3 }); tone(200, 0.4, { to: 500, vol: 0.06 }); },
+    cook() { noise(0.5, { freq: 5000, type: 'highpass', vol: 0.1 }); },
+    equip() { tone(400, 0.06, { type: 'triangle', vol: 0.12 }); tone(600, 0.08, { type: 'triangle', vol: 0.12, delay: 0.05 }); },
+    snap() { noise(0.15, { freq: 1500, vol: 0.3 }); tone(300, 0.15, { to: 100, type: 'square', vol: 0.08 }); },
+    ui() { tone(880, 0.04, { vol: 0.06 }); },
+    warn() { tone(420, 0.9, { to: 300, vol: 0.12, attack: 0.2 }); tone(630, 0.9, { to: 440, vol: 0.06, attack: 0.2, delay: 0.25 }); },
+    death() { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.6, { type: 'triangle', vol: 0.16, delay: i * 0.28 })); },
+    dawn() { [392, 494, 587, 784].forEach((f, i) => tone(f, 0.7, { vol: 0.09, delay: i * 0.16, attack: 0.05 })); },
+  };
+  function play(n) { if (ac && !muted && S[n]) try { S[n](); } catch (_) {} }
+  const DAY = [392, 440, 523.25, 587.33, 659.25, 783.99, 880, 1046.5];      // G major pentatonic
+  const NIGHT = [196, 220, 261.63, 293.66, 329.63, 392];
+  // ambient soundscape, called every frame
+  function tick(dt, st) {
+    if (!ac || muted) return;
+    const now = ac.currentTime;
+    tGust -= dt;
+    if (tGust <= 0) { tGust = rand(3, 7); windF.frequency.setTargetAtTime(rand(220, 650), now, 1.5); windG.gain.setTargetAtTime(rand(0.03, 0.09), now, 1.5); }
+    fireG.gain.setTargetAtTime(st.fire * 0.12, now, 0.2);
+    if (st.fire > 0.05) { tCrackle -= dt; if (tCrackle <= 0) { tCrackle = rand(0.05, 0.5); noise(0.03, { freq: rand(1500, 4000), type: 'highpass', vol: 0.25 * st.fire }); } }
+    if (st.dark < 0.4) { // birds
+      tBird -= dt;
+      if (tBird <= 0) { tBird = rand(2.5, 8); const base = rand(2200, 3600), k = 2 + (Math.random() * 3 | 0); for (let i = 0; i < k; i++) tone(base * rand(0.9, 1.1), 0.09, { to: base * rand(1.15, 1.5), vol: 0.035, delay: i * rand(0.11, 0.16) }); }
+    } else if (st.dark > 0.6) { // crickets + an owl now and then
+      tCricket -= dt;
+      if (tCricket <= 0) {
+        tCricket = rand(0.8, 2.5);
+        if (Math.random() < 0.08) { tone(330, 0.35, { vol: 0.05, attack: 0.05 }); tone(294, 0.5, { vol: 0.05, attack: 0.05, delay: 0.45 }); }
+        else { const f = rand(4200, 4800); for (let i = 0; i < 4; i++) tone(f, 0.035, { vol: 0.018, delay: i * 0.06 }); }
+      }
+    }
+    tNote -= dt; // sparse kalimba-like melody
+    if (tNote <= 0) {
+      const night = st.dark > 0.6; tNote = night ? rand(2.5, 6) : rand(0.9, 3.2);
+      const sc = night ? NIGHT : DAY, f = pick(sc);
+      tone(f, 1.6, { type: 'triangle', vol: night ? 0.035 : 0.045 }); tone(f * 2, 0.9, { vol: 0.012 });
+      if (Math.random() < 0.3) tone(pick(sc), 1.4, { type: 'triangle', vol: 0.03, delay: 0.22 });
+    }
+    if (st.moving) { tStep -= dt; if (tStep <= 0) { tStep = 0.27; noise(0.05, { freq: 500, type: 'lowpass', vol: 0.09 }); } } else tStep = 0;
+  }
+  return {
+    init, play, tick,
+    suspend() { if (ac) ac.suspend(); }, resume() { if (ac) ac.resume(); },
+    get muted() { return muted; },
+    toggle() { muted = !muted; try { localStorage.setItem('darkthicket_muted', muted ? '1' : '0'); } catch (_) {} if (master) master.gain.value = muted ? 0 : 0.7; return muted; },
+  };
+})();
 
 // ============================================================
 //  Canvas setup
@@ -344,7 +444,7 @@ function useHand(amount) {
   const p = G.player;
   if (!p.hand) return;
   p.hand.dur -= amount;
-  if (p.hand.dur <= 0) { say(`${itemName(p.hand.id)}: сломалось`); p.hand = null; }
+  if (p.hand.dur <= 0) { say(`${itemName(p.hand.id)}: сломалось`); p.hand = null; Sfx.play('snap'); }
   invDirty = true;
 }
 
@@ -456,7 +556,7 @@ function interact(t) {
     const left = addItem(t.id, t.n, t.dur);
     if (left === t.n) { say('Инвентарь полон'); p.cd = 0.6; return; }
     if (left > 0) t.n = left; else G.drops.splice(G.drops.indexOf(t), 1);
-    p.cd = 0.2; p.swing = 0.2; return;
+    p.cd = 0.2; p.swing = 0.2; Sfx.play('pickup'); return;
   }
   if (t.kind === 'mob') {
     const dmg = p.hand ? (ITEMS[p.hand.id].dmg || 10) : 10;
@@ -465,7 +565,7 @@ function interact(t) {
     if (t.type === 'boar') t.aggro = true;
     burst(t.x, t.y, t.type === 'shade' ? '#000' : '#a02020', 5);
     if (p.hand && !ITEMS[p.hand.id].timed) useHand(1);
-    p.cd = 0.55; p.swing = 0.25;
+    p.cd = 0.55; p.swing = 0.25; Sfx.play('hit');
     if (t.hp <= 0) killMob(t);
     return;
   }
@@ -473,10 +573,10 @@ function interact(t) {
   const def = RES[t.type];
   if (def.tool) {
     if (!p.hand || ITEMS[p.hand.id].tool !== def.tool) { say(def.tool === 'axe' ? 'Нужен топор' : 'Нужна кирка'); p.cd = 0.8; actionHeld && (lockTarget = null); return; }
-    t.hits++; t.shake = 0.25; useHand(1); p.cd = 0.45; p.swing = 0.25;
+    t.hits++; t.shake = 0.25; useHand(1); p.cd = 0.45; p.swing = 0.25; Sfx.play(t.type === 'tree' ? 'chop' : 'mine');
     burst(t.x, t.y - (t.type === 'tree' ? 30 : 5), t.type === 'tree' ? '#3d5a2a' : '#8a8a84', 5);
     if (t.hits >= def.hits) {
-      t.hits = 0;
+      t.hits = 0; Sfx.play(t.type === 'tree' ? 'fall' : 'crumble');
       if (t.type === 'tree') {
         const n = t.s > 1.05 ? 3 : 2;
         for (let i = 0; i < n; i++) dropItem('log', 1, undefined, t.x, t.y);
@@ -492,7 +592,7 @@ function interact(t) {
   // hand pick
   let n = 1;
   if (t.type === 'bush') n = Math.random() < 0.4 ? 2 : 1;
-  giveOrDrop(def.give, n);
+  giveOrDrop(def.give, n); Sfx.play('pick');
   burst(t.x, t.y, t.type === 'bush' ? '#c4283a' : '#9aa04a', 4, 40);
   if (t.type === 'carrot') G.res.splice(G.res.indexOf(t), 1);
   else { t.state = 'picked'; t.timer = DAY_LEN * def.regrow * rand(0.8, 1.2); }
@@ -502,7 +602,7 @@ function interact(t) {
 function killMob(m) {
   for (const [id, n] of MOBS[m.type].drop) for (let i = 0; i < n; i++) dropItem(id, 1, undefined, m.x, m.y);
   if (m.type === 'shade') { G.player.san = Math.min(MAX.san, G.player.san + 25); burst(m.x, m.y, '#000', 14, 90); }
-  G.mobs.splice(G.mobs.indexOf(m), 1);
+  G.mobs.splice(G.mobs.indexOf(m), 1); Sfx.play('kill');
 }
 
 function hurtPlayer(dmg, ignoreArmor) {
@@ -513,7 +613,7 @@ function hurtPlayer(dmg, ignoreArmor) {
     if (p.body.dur <= 0) { p.body = null; say('Броня развалилась'); }
     invDirty = true;
   }
-  p.hp -= dmg; p.inv_t = 0.4; hurtFlash = 0.35;
+  p.hp -= dmg; p.inv_t = 0.4; hurtFlash = 0.35; Sfx.play(ignoreArmor ? 'dark' : 'hurt');
   burst(p.x, p.y - 10, '#a02020', 6);
   if (navigator.vibrate) try { navigator.vibrate(60); } catch (_) {}
 }
@@ -620,12 +720,12 @@ function update(dt) {
   // ---- wolf nights ----
   if (day % 3 === 0) {
     const pp = dayPhase();
-    if (pp > 0.55 && G.warnDay !== day) { G.warnDay = day; say('Тени-лисы проснулись... Ночью они придут.', 3.5); }
+    if (pp > 0.55 && G.warnDay !== day) { G.warnDay = day; say('Тени-лисы проснулись... Ночью они придут.', 3.5); Sfx.play('warn'); }
     if (pp > 0.74 && G.wolvesDay !== day) {
       G.wolvesDay = day;
       const n = Math.min(1 + Math.floor(day / 3), 6);
       for (let i = 0; i < n; i++) { const a = rand(0, 7); const w = spawnMob('wolf', clamp(p.x + Math.cos(a) * 650, 30, WORLD - 30), clamp(p.y + Math.sin(a) * 650, 30, WORLD - 30)); w.aggro = true; }
-      say('Их глаза горят во тьме!');
+      say('Их глаза горят во тьме!'); Sfx.play('warn');
     }
   }
 
@@ -662,6 +762,11 @@ function update(dt) {
   }
   if (speech) { speech.t -= dt; if (speech.t <= 0) speech = null; }
   hurtFlash = Math.max(0, hurtFlash - dt); darkFlash = Math.max(0, darkFlash - dt);
+
+  // ---- ambient sound ----
+  { let fk = 0; for (const f of G.fires) if (f.fuel > 0) fk = Math.max(fk, clamp(1 - dist(f, p) / 320, 0, 1));
+    Sfx.tick(dt, { dark: dk, fire: fk, moving: p.moving });
+    if (dayPhase() < 0.04 && G.dawnDay !== day && G.t > DAY_LEN) { G.dawnDay = day; Sfx.play('dawn'); } }
 
   // ---- autosave ----
   saveTimer -= dt; if (saveTimer <= 0) { saveTimer = 20; saveGame(); }
@@ -1181,10 +1286,10 @@ function slotActions(i, s) {
     return acts;
   }
   const fire = nearFire();
-  if (def.cook && fire) acts.push(['Приготовить', () => { take(); giveOrDrop(def.cook, 1); burst(fire.x, fire.y, '#ffb347', 5); }]);
+  if (def.cook && fire) acts.push(['Приготовить', () => { take(); giveOrDrop(def.cook, 1); burst(fire.x, fire.y, '#ffb347', 5); Sfx.play('cook'); }]);
   if (def.food) acts.push(['Съесть', () => eat(i)]);
   const anyFire = nearAnyFire();
-  if (def.fuel && anyFire) acts.push(['В костёр', () => { take(); anyFire.fuel = Math.min(anyFire.max, anyFire.fuel + def.fuel); burst(anyFire.x, anyFire.y, '#ffb347', 8); }]);
+  if (def.fuel && anyFire) acts.push(['В костёр', () => { take(); anyFire.fuel = Math.min(anyFire.max, anyFire.fuel + def.fuel); burst(anyFire.x, anyFire.y, '#ffb347', 8); Sfx.play('fire'); }]);
   if (def.slot) acts.push(['Экипировать', () => equip(i)]);
   acts.push(['Выбросить', () => { dropItem(s.id, s.n, s.dur, p.x, p.y); p.inv[i] = null; }]);
   if (s.n > 1) acts.push(['Выбросить 1', () => { dropItem(s.id, 1, s.dur, p.x, p.y); take(); }]);
@@ -1198,12 +1303,12 @@ function eat(i) {
   const p = G.player, s = p.inv[i], f = ITEMS[s.id].food;
   p.hunger = clamp(p.hunger + f.h, 0, MAX.hunger); p.hp = clamp(p.hp + f.hp, 0, MAX.hp); p.san = clamp(p.san + f.s, 0, MAX.san);
   s.n--; if (s.n <= 0) p.inv[i] = null;
-  say(f.hp < 0 ? 'Фу, сырое...' : 'Ням.', 1.4);
+  say(f.hp < 0 ? 'Фу, сырое...' : 'Ням.', 1.4); Sfx.play('eat');
   invDirty = true;
 }
 function equip(i) {
   const p = G.player, s = p.inv[i], slot = ITEMS[s.id].slot;
-  const old = p[slot]; p[slot] = s; p.inv[i] = old || null; invDirty = true;
+  const old = p[slot]; p[slot] = s; p.inv[i] = old || null; invDirty = true; Sfx.play('equip');
 }
 
 // ============================================================
@@ -1211,7 +1316,7 @@ function equip(i) {
 // ============================================================
 const craftEl = document.getElementById('craft');
 const recipesEl = document.getElementById('recipes');
-function toggleCraft() { if (craftEl.classList.contains('hidden')) { craftEl.classList.remove('hidden'); renderRecipes(); } else craftEl.classList.add('hidden'); closePopup(); }
+function toggleCraft() { Sfx.play('ui'); if (craftEl.classList.contains('hidden')) { craftEl.classList.remove('hidden'); renderRecipes(); } else craftEl.classList.add('hidden'); closePopup(); }
 document.getElementById('craftBtn').addEventListener('click', toggleCraft);
 document.getElementById('craftClose').addEventListener('click', toggleCraft);
 function canCraft(r) {
@@ -1246,8 +1351,8 @@ function craft(r) {
   if (r.place) {
     const max = r.id === 'firepit' ? 300 : 180;
     G.fires.push({ kind: 'fire', type: r.id, x: clamp(p.x + p.face * 45, 30, WORLD - 30), y: p.y + 10, fuel: max * 0.6, max });
-    say('Тепло...', 1.5);
-  } else giveOrDrop(r.id, 1, ITEMS[r.id].dur);
+    say('Тепло...', 1.5); Sfx.play('fire');
+  } else { giveOrDrop(r.id, 1, ITEMS[r.id].dur); Sfx.play('craft'); }
   invDirty = true;
 }
 
@@ -1277,19 +1382,20 @@ const $ = id => document.getElementById(id);
 const hud = $('hud'), menu = $('menu'), pauseScr = $('pause'), over = $('over');
 function startRunning() {
   menu.classList.add('hidden'); over.classList.add('hidden'); pauseScr.classList.add('hidden'); hud.classList.remove('hidden');
-  buildInvUI(); invDirty = true; running = true; particles.length = 0; lockTarget = null; actionHeld = false;
+  Sfx.init(); buildInvUI(); invDirty = true; running = true; particles.length = 0; lockTarget = null; actionHeld = false;
   requestFullscreen();
 }
 function requestFullscreen() {
   const el = document.documentElement;
   try { if (!document.fullscreenElement && el.requestFullscreen && matchMedia('(pointer: coarse)').matches) el.requestFullscreen().then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(() => {})).catch(() => {}); } catch (_) {}
 }
-function pauseGame() { if (!running) return; running = false; closePopup(); pauseScr.classList.remove('hidden'); }
+function pauseGame() { if (!running) return; running = false; closePopup(); pauseScr.classList.remove('hidden'); Sfx.suspend(); }
 function showMenu() {
   running = false; hud.classList.add('hidden'); pauseScr.classList.add('hidden'); over.classList.add('hidden'); menu.classList.remove('hidden');
   $('contBtn').classList.toggle('hidden', !hasSave());
 }
 function gameOver() {
+  Sfx.play('death');
   running = false; clearSave(); hud.classList.add('hidden'); craftEl.classList.add('hidden'); closePopup();
   const d = dayNum();
   let best = 0; try { best = +localStorage.getItem('darkthicket_best') || 0; if (d > best) { best = d; localStorage.setItem('darkthicket_best', d); } } catch (_) {}
@@ -1300,7 +1406,11 @@ $('newBtn').addEventListener('click', () => { newGame(); startRunning(); });
 $('contBtn').addEventListener('click', () => { if (loadGame()) startRunning(); else { newGame(); startRunning(); } });
 $('againBtn').addEventListener('click', () => { newGame(); startRunning(); });
 $('pauseBtn').addEventListener('click', pauseGame);
-$('resumeBtn').addEventListener('click', () => { pauseScr.classList.add('hidden'); running = true; });
+$('resumeBtn').addEventListener('click', () => { pauseScr.classList.add('hidden'); running = true; Sfx.resume(); });
+const soundBtn = $('soundBtn');
+const soundLabel = () => { soundBtn.textContent = Sfx.muted ? 'Звук: выкл' : 'Звук: вкл'; };
+soundBtn.addEventListener('click', () => { Sfx.toggle(); soundLabel(); });
+soundLabel();
 $('saveExitBtn').addEventListener('click', () => { saveGame(); showMenu(); });
 
 let last = performance.now();
