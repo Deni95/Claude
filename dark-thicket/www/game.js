@@ -133,7 +133,7 @@ const pick = arr => arr[(Math.random() * arr.length) | 0];
 //  Sound (fully synthesized with WebAudio — no audio files)
 // ============================================================
 const Sfx = (() => {
-  let ac = null, master, nbuf, windF, windG, fireG, muted = false;
+  let ac = null, master, nbuf, windF, windG, fireG, muted = false, held = false;
   let tBird = 3, tCricket = 2, tNote = 2, tCrackle = 0, tStep = 0, tGust = 0;
   try { muted = localStorage.getItem('darkthicket_muted') === '1'; } catch (_) {}
   function init() {
@@ -225,7 +225,9 @@ const Sfx = (() => {
   }
   return {
     init, play, tick,
-    suspend() { if (ac) ac.suspend(); }, resume() { if (ac) ac.resume(); },
+    suspend() { held = true; if (ac) ac.suspend(); }, resume() { held = false; if (ac) ac.resume(); },
+    // iOS suspends audio when the app is backgrounded or the phone is locked: wake it on the next touch
+    kick() { if (ac && !held && ac.state !== 'running') ac.resume(); },
     get muted() { return muted; },
     toggle() { muted = !muted; try { localStorage.setItem('darkthicket_muted', muted ? '1' : '0'); } catch (_) {} if (master) master.gain.value = muted ? 0 : 0.7; return muted; },
   };
@@ -239,6 +241,7 @@ let ctx = cvs.getContext('2d');
 const dark = document.createElement('canvas');
 const dctx = dark.getContext('2d');
 let W = 0, H = 0, DPR = 1, Z = 1;
+const SAFE = { t: 0, r: 0, l: 0 }; // notch / rounded-corner insets
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
@@ -246,8 +249,14 @@ function resize() {
   cvs.style.width = W + 'px'; cvs.style.height = H + 'px';
   dark.width = Math.round(W / 2); dark.height = Math.round(H / 2);
   Z = clamp(Math.min(W, H) / 480, 0.62, 1.5);
+  const sf = document.getElementById('safe');
+  if (sf) { const cs = getComputedStyle(sf); SAFE.t = parseFloat(cs.paddingTop) || 0; SAFE.r = parseFloat(cs.paddingRight) || 0; SAFE.l = parseFloat(cs.paddingLeft) || 0; }
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 250));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+document.addEventListener('touchend', () => Sfx.kick(), { passive: true });
+document.addEventListener('gesturestart', e => e.preventDefault());
 resize();
 
 // ============================================================
@@ -1527,7 +1536,7 @@ function gauge(x, y, val, max, col, icon) {
 }
 function drawHUD() {
   const p = G.player;
-  const top = 32, left = 34;
+  const top = 32 + SAFE.t, left = 34 + SAFE.l;
   gauge(left, top, p.hp, MAX.hp, '#9a2e2a', '❤');
   gauge(left + 56, top, p.hunger, MAX.hunger, '#b5742a', '🍖');
   gauge(left + 112, top, p.san, MAX.san, '#6a4f8a', '🧠');
@@ -1535,7 +1544,7 @@ function drawHUD() {
     ctx.fillStyle = INK; ctx.fillRect(bx - 1.5, by - 1.5, bw + 3, 9); ctx.fillStyle = '#4a4034'; ctx.fillRect(bx, by, bw, 6); ctx.fillStyle = '#c9a64a'; ctx.fillRect(bx, by, bw * k, 6);
     ctx.font = 'bold 11px Georgia, serif'; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.strokeText('Ур. ' + lv, bx + bw + 6, by + 7); ctx.fillStyle = '#e8c77a'; ctx.fillText('Ур. ' + lv, bx + bw + 6, by + 7); ctx.textAlign = 'center'; }
   // clock
-  const cx = W - 92, cy = 38, r = 27;
+  const cx = W - 92 - SAFE.r, cy = 38 + SAFE.t, r = 27;
   const seg = (a0, a1, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, -Math.PI / 2 + a0 * Math.PI * 2, -Math.PI / 2 + a1 * Math.PI * 2); ctx.closePath(); ctx.fill(); };
   ctx.fillStyle = '#1a1410'; ctx.beginPath(); ctx.arc(cx, cy, r + 3, 0, 7); ctx.fill();
   seg(0, 0.5, '#c9a64a'); seg(0.5, 0.68, '#a8562a'); seg(0.68, 1, '#25264a');
@@ -2279,10 +2288,11 @@ soundBtn.addEventListener('click', () => { Sfx.toggle(); soundLabel(); });
 soundLabel();
 $('saveExitBtn').addEventListener('click', () => { saveGame(); showMenu(); });
 
+const portraitMQ = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (G && running) {
+  if (G && running && !portraitMQ.matches) {
     update(dt);
     if (invDirty) { invDirty = false; refreshInv(); }
     actBtn.textContent = buildMode ? 'Строить' : actionLabel(G.hint);
