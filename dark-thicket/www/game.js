@@ -871,13 +871,13 @@ function update(dt) {
   for (const f of G.fires) if (f.fuel > 0 && Math.abs(f.x - p.x) < 900 && Math.abs(f.y - p.y) < 600 && Math.random() < dt * (7 + 6 * f.fuel / f.max)) puff(f.x, f.y - 16 - 22 * f.fuel / f.max, 1 + 0.5 * f.fuel / f.max);
   if (p.hand && p.hand.id === 'torch' && Math.random() < dt * 9) puff(p.x + p.face * 16, p.y - 54, 0.7);
   // red eyes watching from the dark
-  { const dkNow = darkness(), L = lights(), litAt = (x, y) => L.some(l => Math.hypot(l.x - x, l.y - y) < l.r * 0.8);
+  { const dkNow = darkness(), L = lights(), litAt = (x, y) => L.some(l => Math.hypot(l.x - x, l.y - y) < l.r * 1.02);
     for (let i = eyes.length - 1; i >= 0; i--) { const e = eyes[i]; e.life += dt; if (dkNow < 0.7 || litAt(e.x, e.y)) e.max = Math.min(e.max, e.life + 0.35); if (e.life > e.max) eyes.splice(i, 1); }
     if (dkNow > 0.8) {
-      const exposed = !litAt(p.x, p.y), want = exposed ? 16 : (p.san < MAX.san * 0.5 ? 12 : 8);
+      const exposed = !isLit(p.x, p.y), want = exposed ? 16 : (p.san < MAX.san * 0.5 ? 12 : 8);
       if (eyes.length < want && Math.random() < dt * (exposed ? 9 : 3.5)) {
         const a = rand(0, Math.PI * 2), r = exposed ? rand(70, 260) : rand(150, 520), x = p.x + Math.cos(a) * r, y = p.y - 20 + Math.sin(a) * r * 0.6;
-        if (!litAt(x, y) && x > 20 && y > 20 && x < WORLD - 20 && y < WORLD - 20) eyes.push({ x, y, life: 0, max: rand(2.5, 7), s: rand(0.7, 1.5), o: rand(0, 7), gap: rand(5, 8), tilt: rand(-0.25, 0.25) });
+        if (!litAt(x, y) && x > 20 && y > 20 && x < WORLD - 20 && y < WORLD - 20) eyes.push({ x, y, life: 0, max: rand(2.5, 7), s: rand(0.9, 1.6), o: rand(0, 7), gap: rand(5, 8), tilt: rand(-0.25, 0.25) });
       }
     } }
   for (let i = fireflies.length - 1; i >= 0; i--) { const f = fireflies[i]; f.life += dt; f.x += f.vx * dt; f.y += f.vy * dt; if (f.life > f.max) fireflies.splice(i, 1); }
@@ -1098,12 +1098,21 @@ function render() {
     const look = clamp((p.x - e.x) / 200, -1, 1) * 1.2 * e.s;
     ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.tilt);
     for (const sx of [-1, 1]) {
-      const ex = sx * e.gap * e.s;
-      const g = ctx.createRadialGradient(ex, 0, 0, ex, 0, 9 * e.s);
-      g.addColorStop(0, `rgba(255,40,20,${0.55 * fade})`); g.addColorStop(1, 'rgba(255,20,10,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ex, 0, 9 * e.s, 0, 7); ctx.fill();
-      ctx.fillStyle = `rgba(255,60,30,${fade})`; ctx.beginPath(); ctx.ellipse(ex, 0, 3.2 * e.s, 2.1 * e.s * blink, sx * 0.25, 0, 7); ctx.fill();
-      ctx.fillStyle = `rgba(255,220,170,${fade * blink})`; ctx.beginPath(); ctx.arc(ex + look, 0, 0.9 * e.s, 0, 7); ctx.fill();
+      const ex = sx * e.gap * 1.25 * e.s, w = 5.2 * e.s, h = 3 * e.s * blink;
+      // tight halo so the eye stays crisp
+      const g = ctx.createRadialGradient(ex, 0, w * 0.6, ex, 0, w * 1.9);
+      g.addColorStop(0, `rgba(255,30,10,${0.38 * fade})`); g.addColorStop(1, 'rgba(255,20,10,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ex, 0, w * 1.9, 0, 7); ctx.fill();
+      // sharp slanted almond shape
+      ctx.save(); ctx.translate(ex, 0); ctx.rotate(sx * 0.28);
+      ctx.beginPath(); ctx.moveTo(-w, 0); ctx.quadraticCurveTo(0, -h * 1.5, w, 0); ctx.quadraticCurveTo(0, h * 1.1, -w, 0); ctx.closePath();
+      ctx.fillStyle = `rgba(255,36,16,${fade})`; ctx.fill();
+      ctx.strokeStyle = `rgba(255,150,110,${fade})`; ctx.lineWidth = 0.9; ctx.stroke();
+      if (blink === 1) { // bright core + dark slit pupil that follows the hero
+        ctx.fillStyle = `rgba(255,205,150,${fade})`; ctx.beginPath(); ctx.ellipse(look, -h * 0.1, w * 0.42, h * 0.5, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = `rgba(30,0,0,${fade})`; ctx.beginPath(); ctx.ellipse(look, -h * 0.1, w * 0.13, h * 0.55, 0, 0, 7); ctx.fill();
+      }
+      ctx.restore();
     }
     ctx.restore();
   }
