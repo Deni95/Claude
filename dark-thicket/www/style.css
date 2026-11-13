@@ -95,3 +95,12 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .mbtn { background: var(--paper); border: 2px solid var(--edge); border-radius: 22px; padding: 12px 28px; font-size: 18px; box-shadow: 0 3px 10px rgba(40,30,20,.25); }
 .mbtn:active { background: #f0dfb8; }
 .help { max-width: 640px; margin-top: 18px; font-size: 13px; color: var(--ink); line-height: 1.5; background: var(--paper); border: 2px solid var(--edge); border-radius: 12px; padding: 10px 14px; box-shadow: 0 3px 10px rgba(40,30,20,.2); }
+
+#chest {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(70px + env(safe-area-inset-bottom)); z-index: 4;
+  background: var(--paper); border: 2px solid var(--edge); border-radius: 10px; box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+}
+#chest .phead { padding: 5px 10px; font-size: 15px; }
+#chestSlots { display: grid; grid-template-columns: repeat(8, auto); gap: 3px; padding: 6px; justify-content: center; }
+.chint { font-size: 10px; color: #5a4a36; text-align: center; padding: 0 8px 5px; max-width: 420px; }
+#popup { max-width: 330px; }
