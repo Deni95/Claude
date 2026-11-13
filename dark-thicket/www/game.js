@@ -478,6 +478,7 @@ function buildDerived() {
 }
 let clouds = [];
 const fireflies = [];
+const eyes = [], smoke = [];
 
 // ============================================================
 //  Time of day
@@ -864,6 +865,21 @@ function update(dt) {
 
   // ---- particles ----
   for (let i = particles.length - 1; i >= 0; i--) { const q = particles[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 200 * dt; if (q.life <= 0) particles.splice(i, 1); }
+  // smoke rising from fires and the torch
+  for (let i = smoke.length - 1; i >= 0; i--) { const q = smoke[i]; q.life += dt; q.x += (q.vx + Math.sin(G.t * 1.5 + q.o) * 8) * dt; q.y += q.vy * dt; q.vy *= 1 - 0.4 * dt; q.r += 9 * dt; if (q.life > q.max) smoke.splice(i, 1); }
+  const puff = (x, y, k) => smoke.push({ x: x + rand(-3, 3), y, vx: rand(4, 14), vy: rand(-46, -30), life: 0, max: rand(2, 3.4), r: rand(4, 6.5) * k, o: rand(0, 7) });
+  for (const f of G.fires) if (f.fuel > 0 && Math.abs(f.x - p.x) < 900 && Math.abs(f.y - p.y) < 600 && Math.random() < dt * (7 + 6 * f.fuel / f.max)) puff(f.x, f.y - 16 - 22 * f.fuel / f.max, 1 + 0.5 * f.fuel / f.max);
+  if (p.hand && p.hand.id === 'torch' && Math.random() < dt * 9) puff(p.x + p.face * 16, p.y - 54, 0.7);
+  // red eyes watching from the dark
+  { const dkNow = darkness(), L = lights(), litAt = (x, y) => L.some(l => Math.hypot(l.x - x, l.y - y) < l.r * 0.8);
+    for (let i = eyes.length - 1; i >= 0; i--) { const e = eyes[i]; e.life += dt; if (dkNow < 0.7 || litAt(e.x, e.y)) e.max = Math.min(e.max, e.life + 0.35); if (e.life > e.max) eyes.splice(i, 1); }
+    if (dkNow > 0.8) {
+      const exposed = !litAt(p.x, p.y), want = exposed ? 16 : (p.san < MAX.san * 0.5 ? 12 : 8);
+      if (eyes.length < want && Math.random() < dt * (exposed ? 9 : 3.5)) {
+        const a = rand(0, Math.PI * 2), r = exposed ? rand(70, 260) : rand(150, 520), x = p.x + Math.cos(a) * r, y = p.y - 20 + Math.sin(a) * r * 0.6;
+        if (!litAt(x, y) && x > 20 && y > 20 && x < WORLD - 20 && y < WORLD - 20) eyes.push({ x, y, life: 0, max: rand(2.5, 7), s: rand(0.7, 1.5), o: rand(0, 7), gap: rand(5, 8), tilt: rand(-0.25, 0.25) });
+      }
+    } }
   for (let i = fireflies.length - 1; i >= 0; i--) { const f = fireflies[i]; f.life += dt; f.x += f.vx * dt; f.y += f.vy * dt; if (f.life > f.max) fireflies.splice(i, 1); }
   const isDayNow = darkness() < 0.3;
   if (fireflies.length < (isDayNow ? 18 : 40) && Math.random() < 0.3) {
@@ -1022,6 +1038,7 @@ function render() {
     else if (o.kind === 'build') drawBuild(o);
   }
   drawShots();
+  for (const q of smoke) { const k = q.life / q.max; ctx.fillStyle = `rgba(${150 - k * 50 | 0},${140 - k * 50 | 0},${128 - k * 44 | 0},${0.42 * (1 - k) * Math.min(1, q.life * 4)})`; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, 7); ctx.fill(); }
   for (const q of particles) { ctx.globalAlpha = clamp(q.life * 2, 0, 1); ctx.fillStyle = q.col; ctx.fillRect(q.x - q.sz / 2, q.y - q.sz / 2, q.sz, q.sz); }
   ctx.globalAlpha = 1;
 
@@ -1075,6 +1092,21 @@ function render() {
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(fx, fy, 10, 0, 7); ctx.fill();
   }
   ctx.globalCompositeOperation = 'source-over';
+  for (const e of eyes) {
+    const fade = clamp(Math.min(e.life * 2, (e.max - e.life) * 3), 0, 1), blink = Math.sin(G.t * 0.9 + e.o * 5) > 0.93 ? 0.12 : 1;
+    if (fade <= 0) continue;
+    const look = clamp((p.x - e.x) / 200, -1, 1) * 1.2 * e.s;
+    ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.tilt);
+    for (const sx of [-1, 1]) {
+      const ex = sx * e.gap * e.s;
+      const g = ctx.createRadialGradient(ex, 0, 0, ex, 0, 9 * e.s);
+      g.addColorStop(0, `rgba(255,40,20,${0.55 * fade})`); g.addColorStop(1, 'rgba(255,20,10,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ex, 0, 9 * e.s, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(255,60,30,${fade})`; ctx.beginPath(); ctx.ellipse(ex, 0, 3.2 * e.s, 2.1 * e.s * blink, sx * 0.25, 0, 7); ctx.fill();
+      ctx.fillStyle = `rgba(255,220,170,${fade * blink})`; ctx.beginPath(); ctx.arc(ex + look, 0, 0.9 * e.s, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+  }
 
   // speech bubble
   if (speech) {
@@ -1797,7 +1829,7 @@ const hud = $('hud'), menu = $('menu'), pauseScr = $('pause'), over = $('over');
 function startRunning() {
   menu.classList.add('hidden'); over.classList.add('hidden'); pauseScr.classList.add('hidden'); hud.classList.remove('hidden');
   buildMode = null; closeChest(); shots.length = 0;
-  Sfx.init(); buildInvUI(); invDirty = true; running = true; particles.length = 0; lockTarget = null; actionHeld = false;
+  Sfx.init(); buildInvUI(); invDirty = true; running = true; particles.length = 0; eyes.length = 0; smoke.length = 0; lockTarget = null; actionHeld = false;
   requestFullscreen();
 }
 function requestFullscreen() {
