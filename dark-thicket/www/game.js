@@ -237,16 +237,23 @@ resize();
 // ============================================================
 function drawItem(c, id, s) {
   const k = s / 32;
-  if (id.endsWith('2') && ITEMS[id]) { // upgraded variant: base icon + a gold star
-    drawItem(c, id.slice(0, -1), s);
-    c.save(); c.scale(k, k); c.fillStyle = '#c9a64a'; c.strokeStyle = '#1a1410'; c.lineWidth = 1.2;
-    c.beginPath(); c.moveTo(-11, -14); c.lineTo(-8.5, -9); c.lineTo(-3, -9); c.lineTo(-7.5, -5.5); c.lineTo(-6, 0); c.lineTo(-11, -3.5); c.lineTo(-16, 0); c.lineTo(-14.5, -5.5); c.lineTo(-19, -9); c.lineTo(-13.5, -9); c.closePath(); c.fill(); c.stroke();
-    c.restore(); return;
-  }
+  // upgraded tools (ids ending in "2") share the base drawing with a steel-and-gold palette
+  const up = id.endsWith('2') && !!ITEMS[id], base = up ? id.slice(0, -1) : id;
+  const INKC = '#1a1410', HEAD = up ? '#9aa7b2' : '#7d7a74', EDGE = up ? '#dfe7ec' : '#b9b5aa', WOODC = up ? '#4a3628' : '#8a623c';
   c.save(); c.scale(k, k); c.lineCap = 'round'; c.lineJoin = 'round';
   const line = (col, w, pts) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); };
   const circ = (x, y, r, col) => { c.fillStyle = col; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); };
-  switch (id) {
+  const shape = (col, pts, lw = 1.6) => { c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fillStyle = col; c.fill(); c.strokeStyle = INKC; c.lineWidth = lw; c.stroke(); };
+  // inked wooden handle with a highlight and grain ticks
+  const haft = (x0, y0, x1, y1, w = 3.2) => {
+    line(INKC, w + 2.6, [x0, y0, x1, y1]); line(WOODC, w, [x0, y0, x1, y1]);
+    const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), nx = -dy / L, ny = dx / L;
+    line('rgba(255,225,170,.28)', 1, [x0 + nx * 0.9, y0 + ny * 0.9, x1 + nx * 0.9, y1 + ny * 0.9]);
+    for (const t of [0.25, 0.5]) line('rgba(26,20,16,.5)', 0.9, [x0 + dx * t - nx, y0 + dy * t - ny, x0 + dx * (t + 0.08) + nx * 0.4, y0 + dy * (t + 0.08) + ny * 0.4]);
+  };
+  // rope binding: three short wraps across the handle
+  const bind = (x, y, a, col = '#c9b88a') => { for (let i = -1; i <= 1; i++) { const ox = Math.cos(a) * i * 1.8, oy = -Math.sin(a) * i * 1.8; line(INKC, 2.6, [x + ox - 2.6, y + oy - 2.2, x + ox + 2.6, y + oy + 2.2]); line(col, 1.3, [x + ox - 2.6, y + oy - 2.2, x + ox + 2.6, y + oy + 2.2]); } };
+  switch (base) {
     case 'log':
       c.fillStyle = '#6b4a2b'; c.fillRect(-12, -6, 22, 12);
       c.fillStyle = '#c9a66b'; c.beginPath(); c.ellipse(10, 0, 4, 6, 0, 0, 7); c.fill();
@@ -282,20 +289,35 @@ function drawItem(c, id, s) {
       c.fillStyle = '#5a4030'; c.beginPath(); c.ellipse(0, 4, 13, 8, 0, 0, Math.PI); c.fill();
       c.fillStyle = '#8a5a2a'; c.beginPath(); c.ellipse(0, 3, 13, 4, 0, 0, 7); c.fill();
       circ(-4, 2, 2, '#e07a22'); circ(4, 3, 2, '#c4283a'); line('rgba(220,220,220,.5)', 1.5, [-3, -4, -1, -10]); line('rgba(220,220,220,.5)', 1.5, [3, -3, 5, -10]); break;
-    case 'axe':
-      line('#7a5634', 3, [-10, 13, 7, -10]);
-      c.fillStyle = '#9aa0a8'; c.beginPath(); c.moveTo(3, -12); c.quadraticCurveTo(16, -12, 14, 2); c.lineTo(5, -6); c.closePath(); c.fill(); break;
-    case 'pickaxe':
-      line('#7a5634', 3, [-10, 13, 6, -8]);
-      c.strokeStyle = '#9aa0a8'; c.lineWidth = 4; c.beginPath(); c.moveTo(-6, -12); c.quadraticCurveTo(6, -14, 14, -2); c.stroke(); break;
-    case 'spear':
-      line('#7a5634', 2.5, [-13, 13, 8, -8]);
-      c.fillStyle = '#5a5d66'; c.beginPath(); c.moveTo(14, -14); c.lineTo(5, -9); c.lineTo(9, -5); c.closePath(); c.fill();
-      line('#c2a36a', 2, [3, -5, 6, -2]); break;
-    case 'torch':
-      line('#7a5634', 3.5, [-6, 14, 4, -4]);
-      c.fillStyle = '#f2a02a'; c.beginPath(); c.moveTo(1, -2); c.quadraticCurveTo(0, -14, 9, -16); c.quadraticCurveTo(12, -6, 7, -1); c.closePath(); c.fill();
-      c.fillStyle = '#ffe07a'; c.beginPath(); c.ellipse(5, -6, 2, 4, 0.4, 0, 7); c.fill(); break;
+    case 'axe': {
+      haft(-11, 14, 6, -10);
+      if (up) shape(HEAD, [3, -9, -4, -15, -2, -8], 1.4);                       // back spike
+      shape(HEAD, up ? [1, -12, 8, -17, 16, -12, 17, 1, 8, -4, 4, -7] : [2, -12, 8, -15, 14, -10, 14, -1, 7, -4, 4, -7]);
+      c.fillStyle = EDGE; c.beginPath(); if (up) { c.moveTo(16, -12); c.lineTo(17, 1); c.lineTo(13, -2); c.lineTo(13, -11); } else { c.moveTo(14, -10); c.lineTo(14, -1); c.lineTo(11, -3); c.lineTo(11.5, -10); } c.closePath(); c.fill();
+      line('rgba(26,20,16,.45)', 1, [6, -11, 10, -7]); line('rgba(26,20,16,.45)', 1, [8, -13, 11, -10]);
+      bind(3, -6, 0.9); if (up) { bind(-6, 7, 0.9, '#c9a64a'); }
+      break; }
+    case 'pickaxe': {
+      haft(-10, 14, 5, -8);
+      shape(HEAD, up ? [-15, -5, -6, -15, 7, -15, 17, -3, 14, -1, 5, -9, -4, -9, -12, -3] : [-13, -6, -5, -14, 6, -13, 15, -4, 13, -2, 5, -8, -3, -9, -11, -4]);
+      line(EDGE, 1.4, [-4, -12.5, 6, -11.5]); line(EDGE, 1.2, [13.5, -4, 15.5, -3]); line(EDGE, 1.2, [-12, -5, -13.5, -4.5]);
+      bind(4, -7, 0.9); if (up) bind(-5, 7, 0.9, '#c9a64a');
+      break; }
+    case 'spear': {
+      haft(-14, 14, 6, -6, 2.6);
+      shape(HEAD, up ? [16, -16, 3, -12, 1, -8, 6, -8, 8, -1, 12, -3, 12, -8] : [15, -15, 5, -11, 4, -4, 11, -6]);
+      line(EDGE, 1.2, [14, -14, 7, -7]);
+      bind(4, -4, 0.9);
+      if (up) { line(INKC, 3.6, [1, -1, -3, 7]); line('#8e2e2a', 2, [1, -1, -3, 7]); line(INKC, 3.2, [2, 0, 3, 8]); line('#a8454a', 1.8, [2, 0, 3, 8]); }
+      break; }
+    case 'torch': {
+      haft(-7, 15, 2, -2, 3.4);
+      shape('#3b2c22', [-3, -1, 3, -6, 8, -1, 3, 4], 1.4); line('#6e5238', 1, [0, -2, 4, 2]); line('#6e5238', 1, [2, -4, 6, 0]);
+      c.beginPath(); c.moveTo(-1, -3); c.bezierCurveTo(-6, -12, 3, -13, 3, -20); c.bezierCurveTo(8, -16, 14, -9, 8, -2); c.closePath(); c.fillStyle = '#c8421a'; c.fill(); c.strokeStyle = INKC; c.lineWidth = 1.5; c.stroke();
+      c.beginPath(); c.moveTo(1, -3); c.bezierCurveTo(-2, -9, 4, -10, 4, -15); c.bezierCurveTo(8, -12, 10, -7, 7, -3); c.closePath(); c.fillStyle = '#f2a02a'; c.fill();
+      c.beginPath(); c.ellipse(4.5, -6, 1.8, 3.2, 0.2, 0, 7); c.fillStyle = '#ffe9a0'; c.fill();
+      circ(11, -17, 0.9, '#f2a02a'); circ(-2, -15, 0.7, '#f2a02a');
+      break; }
     case 'wall':
       for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? '#6e5238' : '#5a4230'; c.beginPath(); c.moveTo(-14 + i * 7, 13); c.lineTo(-14 + i * 7, -7); c.lineTo(-10.5 + i * 7, -13); c.lineTo(-7 + i * 7, -7); c.lineTo(-7 + i * 7, 13); c.closePath(); c.fill(); c.strokeStyle = '#1a1410'; c.lineWidth = 1.2; c.stroke(); } break;
     case 'door':
@@ -324,9 +346,15 @@ function drawItem(c, id, s) {
       c.fillStyle = '#b5a26a'; c.fillRect(-10, -7, 20, 14); c.fillStyle = '#93904c'; c.beginPath(); c.ellipse(10, 0, 4, 7, 0, 0, 7); c.fill();
       c.strokeStyle = '#5a4a2c'; c.lineWidth = 1.2; c.beginPath(); c.ellipse(10, 0, 2, 3.5, 0, 0, 7); c.stroke();
       line('#6e2a26', 2.5, [-5, -7, -5, 7]); line('#6e2a26', 2.5, [3, -7, 3, 7]); break;
-    case 'armor':
-      c.fillStyle = '#7a5634'; c.beginPath(); c.moveTo(-11, -10); c.lineTo(-4, -12); c.lineTo(0, -8); c.lineTo(4, -12); c.lineTo(11, -10); c.lineTo(10, 12); c.lineTo(-10, 12); c.closePath(); c.fill();
-      for (let i = -6; i <= 6; i += 6) line('#4b3220', 1.5, [i, -8, i, 11]); line('#c2a36a', 2, [-10, 2, 10, 2]); break;
+    case 'armor': {
+      const P1 = up ? '#4a3a2e' : '#7a5634', P2 = up ? '#57463a' : '#8c6540';
+      shape(P1, [-12, -9, -6, -13, -3, -9, 3, -9, 6, -13, 12, -9, 11, 13, -11, 13]);
+      for (let i = 0; i < 4; i++) { c.fillStyle = i % 2 ? P2 : P1; c.fillRect(-10 + i * 5, -8, 5, 20); line(INKC, 1, [-10 + i * 5, -8, -10 + i * 5, 12]); }
+      line('rgba(26,20,16,.4)', 0.9, [-7, -2, -7, 6]); line('rgba(26,20,16,.4)', 0.9, [3, -5, 3, 2]); line('rgba(26,20,16,.4)', 0.9, [8, 2, 8, 9]);
+      if (up) { for (const y of [-4, 6]) { c.fillStyle = '#aab4bd'; c.fillRect(-11, y, 22, 3.4); c.strokeStyle = INKC; c.lineWidth = 1; c.strokeRect(-11, y, 22, 3.4); for (const x of [-8, -2.5, 2.5, 8]) circ(x, y + 1.7, 0.9, '#c9a64a'); } }
+      else { line(INKC, 3.4, [-11, -2, 11, -2]); line('#c2a36a', 1.8, [-11, -2, 11, -2]); line(INKC, 3.4, [-11, 7, 11, 7]); line('#c2a36a', 1.8, [-11, 7, 11, 7]); }
+      c.strokeStyle = INKC; c.lineWidth = 1.6; c.beginPath(); c.moveTo(-12, -9); c.lineTo(-6, -13); c.lineTo(-3, -9); c.lineTo(3, -9); c.lineTo(6, -13); c.lineTo(12, -9); c.lineTo(11, 13); c.lineTo(-11, 13); c.closePath(); c.stroke();
+      break; }
     case 'campfire': case 'firepit':
       for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; circ(Math.cos(a) * 11, 5 + Math.sin(a) * 5, 3.5, id === 'campfire' ? '#6b4a2b' : '#86857f'); }
       c.fillStyle = '#f2a02a'; c.beginPath(); c.moveTo(-6, 4); c.quadraticCurveTo(-4, -12, 0, -14); c.quadraticCurveTo(5, -8, 6, 4); c.closePath(); c.fill();
