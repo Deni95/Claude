@@ -146,3 +146,5 @@ html, body { position: fixed; inset: 0; overscroll-behavior: none; -webkit-touch
   .big { width: 78px; height: 78px; font-size: 13px; }
   .mid { width: 48px; height: 48px; font-size: 22px; }
 }
+
+.dash { font-size: 12px; font-weight: bold; color: var(--accent); transition: opacity .1s; }
