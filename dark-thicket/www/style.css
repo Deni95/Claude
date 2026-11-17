@@ -148,3 +148,8 @@ html, body { position: fixed; inset: 0; overscroll-behavior: none; -webkit-touch
 }
 
 .dash { font-size: 12px; font-weight: bold; color: var(--accent); transition: opacity .1s; }
+
+.langs { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+.langBtn { background: rgba(217, 201, 160, .25); color: #e6d8b4; border: 2px solid rgba(217, 201, 160, .5); border-radius: 18px; padding: 6px 16px; font-size: 14px; }
+.langBtn.on { background: var(--paper); color: var(--ink); border-color: var(--edge); font-weight: bold; }
+@media (max-height: 400px) { .langs { margin-top: 6px; } .langBtn { padding: 4px 12px; font-size: 13px; } }

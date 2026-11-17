@@ -38,4 +38,13 @@ public class MainActivity extends BridgeActivity {
     }
 }
 JAVA
+# English app name on phones set to English
+mkdir -p res/values-en
+cat > res/values-en/strings.xml <<XML
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">The Last Campfire</string>
+    <string name="title_activity_main">The Last Campfire</string>
+</resources>
+XML
 echo "Android project patched."

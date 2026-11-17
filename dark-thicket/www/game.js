@@ -1,6 +1,33 @@
 'use strict';
 (() => {
 // ============================================================
+//  Language: Russian is the source text; English comes from lang.js (window.LANG_EN)
+// ============================================================
+const LANG = (() => { try { const v = localStorage.getItem('koster_lang'); if (v === 'ru' || v === 'en') return v; } catch (_) {} return /^ru|^uk|^be|^kk/i.test(navigator.language || '') ? 'ru' : 'en'; })();
+const EN = window.LANG_EN || {};
+function T(s, ...a) {
+  let r = LANG === 'en' && EN[s] !== undefined ? EN[s] : s;
+  return a.length ? r.replace(/\{(\d)\}/g, (_, i) => a[i]) : r;
+}
+function dayWord(d) {
+  if (LANG === 'en') return d + (d === 1 ? ' day' : ' days');
+  return d + ' ' + (d % 10 === 1 && d % 100 !== 11 ? 'день' : d % 10 >= 2 && d % 10 <= 4 && (d % 100 < 10 || d % 100 >= 20) ? 'дня' : 'дней');
+}
+function translateDom() {
+  document.documentElement.lang = LANG;
+  for (const b of document.querySelectorAll('.langBtn')) b.classList.toggle('on', b.dataset.lang === LANG);
+  if (LANG !== 'en') return;
+  document.title = T(document.title);
+  for (const el of document.querySelectorAll('[data-t]')) el.innerHTML = T(el.innerHTML.replace(/\s+/g, ' ').trim());
+  for (const el of document.querySelectorAll('[aria-label]')) el.setAttribute('aria-label', T(el.getAttribute('aria-label')));
+}
+translateDom();
+for (const b of document.querySelectorAll('.langBtn')) b.addEventListener('click', () => {
+  if (b.dataset.lang === LANG) return;
+  try { localStorage.setItem('koster_lang', b.dataset.lang); } catch (_) {}
+  location.reload();
+});
+// ============================================================
 //  ПОСЛЕДНИЙ КОСТЁР — survival game
 // ============================================================
 const WORLD = 3000;
@@ -11,85 +38,85 @@ const INV_SIZE = 12;
 
 // ---------- Items ----------
 const ITEMS = {
-  log:      { name: 'Бревно', fuel: 45 },
-  twig:     { name: 'Ветка', fuel: 12 },
-  grass:    { name: 'Трава', fuel: 15 },
-  flint:    { name: 'Кремень' },
-  rock:     { name: 'Камень' },
-  rope:     { name: 'Верёвка' },
-  berry:    { name: 'Ягоды', food: { h: 9, hp: 0, s: 0 }, cook: 'berry_c' },
-  berry_c:  { name: 'Печёные ягоды', food: { h: 12, hp: 1, s: 0 } },
-  carrot:   { name: 'Морковь', food: { h: 12, hp: 1, s: 0 }, cook: 'carrot_c' },
-  carrot_c: { name: 'Печёная морковь', food: { h: 12, hp: 3, s: 0 } },
-  meat:     { name: 'Сырое мясо', food: { h: 25, hp: -3, s: -10 }, cook: 'meat_c' },
-  meat_c:   { name: 'Жареное мясо', food: { h: 25, hp: 3, s: 5 } },
-  stew:     { name: 'Похлёбка', food: { h: 60, hp: 20, s: 15 } },
-  petals:   { name: 'Лепестки', food: { h: 1, hp: 1, s: 4 } },
-  cone:     { name: 'Шишка', fuel: 8, plant: true },
-  salve:    { name: 'Целебная мазь', heal: 35 },
-  trap:     { name: 'Силок', place: 'trap' },
-  bedroll:  { name: 'Лежанка', sleep: true },
-  ore:      { name: 'Руда' },
-  glowshroom: { name: 'Светогриб', food: { h: 8, hp: 0, s: 8 } },
-  heart:    { name: 'Сердце глубин', heart: true },
-  sword:    { name: 'Стальной клинок', slot: 'hand', tool: 'weapon', dur: 300, dmg: 75 },
-  lantern:  { name: 'Фонарь', slot: 'hand', tool: 'light', dur: 600, dmg: 10, timed: true, light: 250 },
-  axe:      { name: 'Топор', slot: 'hand', tool: 'axe', dur: 60, dmg: 20 },
-  pickaxe:  { name: 'Кирка', slot: 'hand', tool: 'pickaxe', dur: 40, dmg: 20 },
-  spear:    { name: 'Копьё', slot: 'hand', tool: 'weapon', dur: 90, dmg: 34 },
-  torch:    { name: 'Факел', slot: 'hand', tool: 'light', dur: 100, dmg: 12, timed: true },
-  armor:    { name: 'Деревянная броня', slot: 'body', dur: 350 },
-  axe2:     { name: 'Крепкий топор', slot: 'hand', tool: 'axe', dur: 160, dmg: 28, power: 2 },
-  pickaxe2: { name: 'Крепкая кирка', slot: 'hand', tool: 'pickaxe', dur: 110, dmg: 28, power: 2 },
-  bow:      { name: 'Лук', slot: 'hand', tool: 'bow', dur: 120, dmg: 26 },
-  arrow:    { name: 'Стрелы' },
-  spear2:   { name: 'Тяжёлое копьё', slot: 'hand', tool: 'weapon', dur: 200, dmg: 52 },
-  armor2:   { name: 'Окованная броня', slot: 'body', dur: 800, absorb: 0.75 },
+  log:      { name: T('Бревно'), fuel: 45 },
+  twig:     { name: T('Ветка'), fuel: 12 },
+  grass:    { name: T('Трава'), fuel: 15 },
+  flint:    { name: T('Кремень') },
+  rock:     { name: T('Камень') },
+  rope:     { name: T('Верёвка') },
+  berry:    { name: T('Ягоды'), food: { h: 9, hp: 0, s: 0 }, cook: 'berry_c' },
+  berry_c:  { name: T('Печёные ягоды'), food: { h: 12, hp: 1, s: 0 } },
+  carrot:   { name: T('Морковь'), food: { h: 12, hp: 1, s: 0 }, cook: 'carrot_c' },
+  carrot_c: { name: T('Печёная морковь'), food: { h: 12, hp: 3, s: 0 } },
+  meat:     { name: T('Сырое мясо'), food: { h: 25, hp: -3, s: -10 }, cook: 'meat_c' },
+  meat_c:   { name: T('Жареное мясо'), food: { h: 25, hp: 3, s: 5 } },
+  stew:     { name: T('Похлёбка'), food: { h: 60, hp: 20, s: 15 } },
+  petals:   { name: T('Лепестки'), food: { h: 1, hp: 1, s: 4 } },
+  cone:     { name: T('Шишка'), fuel: 8, plant: true },
+  salve:    { name: T('Целебная мазь'), heal: 35 },
+  trap:     { name: T('Силок'), place: 'trap' },
+  bedroll:  { name: T('Лежанка'), sleep: true },
+  ore:      { name: T('Руда') },
+  glowshroom: { name: T('Светогриб'), food: { h: 8, hp: 0, s: 8 } },
+  heart:    { name: T('Сердце глубин'), heart: true },
+  sword:    { name: T('Стальной клинок'), slot: 'hand', tool: 'weapon', dur: 300, dmg: 75 },
+  lantern:  { name: T('Фонарь'), slot: 'hand', tool: 'light', dur: 600, dmg: 10, timed: true, light: 250 },
+  axe:      { name: T('Топор'), slot: 'hand', tool: 'axe', dur: 60, dmg: 20 },
+  pickaxe:  { name: T('Кирка'), slot: 'hand', tool: 'pickaxe', dur: 40, dmg: 20 },
+  spear:    { name: T('Копьё'), slot: 'hand', tool: 'weapon', dur: 90, dmg: 34 },
+  torch:    { name: T('Факел'), slot: 'hand', tool: 'light', dur: 100, dmg: 12, timed: true },
+  armor:    { name: T('Деревянная броня'), slot: 'body', dur: 350 },
+  axe2:     { name: T('Крепкий топор'), slot: 'hand', tool: 'axe', dur: 160, dmg: 28, power: 2 },
+  pickaxe2: { name: T('Крепкая кирка'), slot: 'hand', tool: 'pickaxe', dur: 110, dmg: 28, power: 2 },
+  bow:      { name: T('Лук'), slot: 'hand', tool: 'bow', dur: 120, dmg: 26 },
+  arrow:    { name: T('Стрелы') },
+  spear2:   { name: T('Тяжёлое копьё'), slot: 'hand', tool: 'weapon', dur: 200, dmg: 52 },
+  armor2:   { name: T('Окованная броня'), slot: 'body', dur: 800, absorb: 0.75 },
 };
 const STACK = 40;
 const isStackable = id => !ITEMS[id].slot;
 
 const RECIPES = [
-  { id: 'axe', need: { twig: 1, flint: 1 }, desc: 'Рубит деревья' },
-  { id: 'pickaxe', need: { twig: 2, flint: 2 }, desc: 'Разбивает валуны' },
-  { id: 'torch', need: { twig: 2, grass: 2 }, desc: 'Свет в руке, горит недолго' },
-  { id: 'campfire', place: true, name: 'Костёр', need: { grass: 3, log: 2 }, desc: 'Свет и готовка. Подбрасывай топливо' },
-  { id: 'rope', need: { grass: 3 }, desc: 'Материал' },
-  { id: 'trap', need: { grass: 4, twig: 2 }, desc: 'Поставь на лугу — ловит зайцев' },
-  { id: 'salve', need: { petals: 4, grass: 1 }, desc: 'Лечит 35 здоровья' },
-  { id: 'bedroll', need: { grass: 6, rope: 1 }, desc: 'Сон у костра: пропустить ночь' },
-  { id: 'spear', need: { twig: 2, rope: 1, flint: 1 }, desc: 'Урон 34' },
-  { id: 'bow', need: { twig: 3, rope: 2 }, desc: 'Бьёт издалека. Нужны стрелы' },
-  { id: 'arrow', n: 5, name: 'Стрелы ×5', need: { twig: 1, flint: 1 }, desc: 'Пять стрел для лука' },
-  { id: 'firepit', place: true, name: 'Каменный очаг', need: { log: 2, rock: 8 }, desc: 'Горит дольше и ярче' },
-  { id: 'armor', need: { log: 6, rope: 2 }, desc: 'Поглощает 60% урона' },
-  { id: 'axe2', need: { axe: 1, rock: 3, rope: 1 }, desc: 'Улучшение топора: рубит вдвое быстрее' },
-  { id: 'pickaxe2', need: { pickaxe: 1, rock: 4, rope: 1 }, desc: 'Улучшение кирки: добывает вдвое быстрее' },
-  { id: 'spear2', need: { spear: 1, flint: 3, rope: 1 }, desc: 'Улучшение копья: урон 52' },
-  { id: 'armor2', need: { armor: 1, rock: 6, rope: 2 }, desc: 'Улучшение брони: поглощает 75% урона' },
-  { id: 'sword', need: { ore: 4, log: 1, rope: 1 }, desc: 'Урон 75. Руда — из пещер' },
-  { id: 'lantern', need: { ore: 2, glowshroom: 3, rope: 1 }, desc: 'Яркий свет на 10 минут' },
-  { id: 'wall', build: true, name: 'Стена', need: { log: 2 }, desc: 'Преграда для зверей. Улучшается до камня' },
-  { id: 'door', build: true, name: 'Дверь', need: { log: 3, rope: 1 }, desc: 'Ты проходишь, звери — нет' },
-  { id: 'chest', build: true, name: 'Склад', need: { log: 4 }, desc: 'Хранит вещи: 8 ячеек, до 16 с улучшением' },
-  { id: 'tower', build: true, name: 'Башня', need: { log: 6, rock: 4, rope: 2 }, desc: 'Сама стреляет по врагам' },
-  { id: 'stew', need: { meat_c: 1, carrot: 2, berry: 2 }, desc: 'Сытная еда, лечит', nearFire: true },
+  { id: 'axe', need: { twig: 1, flint: 1 }, desc: T('Рубит деревья') },
+  { id: 'pickaxe', need: { twig: 2, flint: 2 }, desc: T('Разбивает валуны') },
+  { id: 'torch', need: { twig: 2, grass: 2 }, desc: T('Свет в руке, горит недолго') },
+  { id: 'campfire', place: true, name: T('Костёр'), need: { grass: 3, log: 2 }, desc: T('Свет и готовка. Подбрасывай топливо') },
+  { id: 'rope', need: { grass: 3 }, desc: T('Материал') },
+  { id: 'trap', need: { grass: 4, twig: 2 }, desc: T('Поставь на лугу — ловит зайцев') },
+  { id: 'salve', need: { petals: 4, grass: 1 }, desc: T('Лечит 35 здоровья') },
+  { id: 'bedroll', need: { grass: 6, rope: 1 }, desc: T('Сон у костра: пропустить ночь') },
+  { id: 'spear', need: { twig: 2, rope: 1, flint: 1 }, desc: T('Урон 34') },
+  { id: 'bow', need: { twig: 3, rope: 2 }, desc: T('Бьёт издалека. Нужны стрелы') },
+  { id: 'arrow', n: 5, name: T('Стрелы ×5'), need: { twig: 1, flint: 1 }, desc: T('Пять стрел для лука') },
+  { id: 'firepit', place: true, name: T('Каменный очаг'), need: { log: 2, rock: 8 }, desc: T('Горит дольше и ярче') },
+  { id: 'armor', need: { log: 6, rope: 2 }, desc: T('Поглощает 60% урона') },
+  { id: 'axe2', need: { axe: 1, rock: 3, rope: 1 }, desc: T('Улучшение топора: рубит вдвое быстрее') },
+  { id: 'pickaxe2', need: { pickaxe: 1, rock: 4, rope: 1 }, desc: T('Улучшение кирки: добывает вдвое быстрее') },
+  { id: 'spear2', need: { spear: 1, flint: 3, rope: 1 }, desc: T('Улучшение копья: урон 52') },
+  { id: 'armor2', need: { armor: 1, rock: 6, rope: 2 }, desc: T('Улучшение брони: поглощает 75% урона') },
+  { id: 'sword', need: { ore: 4, log: 1, rope: 1 }, desc: T('Урон 75. Руда — из пещер') },
+  { id: 'lantern', need: { ore: 2, glowshroom: 3, rope: 1 }, desc: T('Яркий свет на 10 минут') },
+  { id: 'wall', build: true, name: T('Стена'), need: { log: 2 }, desc: T('Преграда для зверей. Улучшается до камня') },
+  { id: 'door', build: true, name: T('Дверь'), need: { log: 3, rope: 1 }, desc: T('Ты проходишь, звери — нет') },
+  { id: 'chest', build: true, name: T('Склад'), need: { log: 4 }, desc: T('Хранит вещи: 8 ячеек, до 16 с улучшением') },
+  { id: 'tower', build: true, name: T('Башня'), need: { log: 6, rock: 4, rope: 2 }, desc: T('Сама стреляет по врагам') },
+  { id: 'stew', need: { meat_c: 1, carrot: 2, berry: 2 }, desc: T('Сытная еда, лечит'), nearFire: true },
 ];
 
 // ---------- Resources ----------
 const RES = {
-  tree:    { r: 16, solid: true, label: 'Рубить', tool: 'axe', hits: 5 },
-  sapling: { r: 8, label: 'Сорвать', give: 'twig', regrow: 1.0 },
-  grass:   { r: 8, label: 'Сорвать', give: 'grass', regrow: 1.0 },
-  bush:    { r: 14, label: 'Собрать', give: 'berry', regrow: 1.6 },
-  carrot:  { r: 8, label: 'Выкопать', give: 'carrot' },
-  flower:  { r: 7, label: 'Сорвать', give: 'petals' },
-  cave:    { r: 22, label: 'В пещеру' },
-  exit:    { r: 12, label: 'Наверх' },
-  stairs:  { r: 18, label: 'Глубже' },
-  ore:     { r: 18, solid: true, label: 'Добыть', tool: 'pickaxe', hits: 5 },
-  glowshroom: { r: 8, label: 'Сорвать', give: 'glowshroom', regrow: 2 },
-  boulder: { r: 22, solid: true, label: 'Добыть', tool: 'pickaxe', hits: 6 },
+  tree:    { r: 16, solid: true, label: T('Рубить'), tool: 'axe', hits: 5 },
+  sapling: { r: 8, label: T('Сорвать'), give: 'twig', regrow: 1.0 },
+  grass:   { r: 8, label: T('Сорвать'), give: 'grass', regrow: 1.0 },
+  bush:    { r: 14, label: T('Собрать'), give: 'berry', regrow: 1.6 },
+  carrot:  { r: 8, label: T('Выкопать'), give: 'carrot' },
+  flower:  { r: 7, label: T('Сорвать'), give: 'petals' },
+  cave:    { r: 22, label: T('В пещеру') },
+  exit:    { r: 12, label: T('Наверх') },
+  stairs:  { r: 18, label: T('Глубже') },
+  ore:     { r: 18, solid: true, label: T('Добыть'), tool: 'pickaxe', hits: 5 },
+  glowshroom: { r: 8, label: T('Сорвать'), give: 'glowshroom', regrow: 2 },
+  boulder: { r: 22, solid: true, label: T('Добыть'), tool: 'pickaxe', hits: 6 },
 };
 const SPAWN = {
   forest: [['tree', .42], ['sapling', .07], ['grass', .03], ['bush', .03], ['flower', .012]],
@@ -458,7 +485,7 @@ function newGame(char = 'wanderer') {
   genWorld(); spawnCaves();
   applyStats(); { const p = G.player; p.hp = MAX.hp; p.hunger = MAX.hunger; p.san = MAX.san; for (const [id, n] of charOf().start) addItem(id, n); }
   buildDerived();
-  say('Скоро стемнеет. Нужны ветки и кремень.');
+  say(T('Скоро стемнеет. Нужны ветки и кремень.'));
 }
 
 function spawnRes(type, x, y, rnd = Math.random) {
@@ -578,7 +605,7 @@ function addItem(id, n = 1, dur) {
 }
 function giveOrDrop(id, n = 1, dur) {
   const left = addItem(id, n, dur);
-  if (left > 0) { dropItem(id, left, dur, G.player.x, G.player.y); say('Инвентарь полон'); }
+  if (left > 0) { dropItem(id, left, dur, G.player.x, G.player.y); say(T('Инвентарь полон')); }
 }
 function dropItem(id, n, dur, x, y) {
   G.drops.push({ kind: 'drop', id, n, dur, x: x + rand(-14, 14), y: y + rand(-6, 14) });
@@ -596,7 +623,7 @@ function useHand(amount) {
   const p = G.player;
   if (!p.hand) return;
   p.hand.dur -= amount * charOf().wear;
-  if (p.hand.dur <= 0) { say(`${itemName(p.hand.id)}: сломалось`); p.hand = null; Sfx.play('snap'); }
+  if (p.hand.dur <= 0) { say(T('{0}: сломалось', itemName(p.hand.id))); p.hand = null; Sfx.play('snap'); }
   invDirty = true;
 }
 
@@ -704,10 +731,10 @@ function findTarget(radius = 230) {
   return best;
 }
 function actionLabel(t) {
-  if (!t) return 'Действие';
-  if (t.kind === 'drop') return 'Поднять';
-  if (t.kind === 'mob') return 'Атака';
-  if (t.kind === 'trap') return t.caught ? 'Достать' : 'Забрать';
+  if (!t) return T('Действие');
+  if (t.kind === 'drop') return T('Поднять');
+  if (t.kind === 'mob') return T('Атака');
+  if (t.kind === 'trap') return t.caught ? T('Достать') : T('Забрать');
   return RES[t.type].label;
 }
 
@@ -720,7 +747,7 @@ const fury = () => G.player.fury > 0;
 function gainRage(n) {
   const p = G.player; if (p.fury > 0) return;
   p.rage = Math.min(100, (p.rage || 0) + n); p.rageT = G.t;
-  if (p.rage >= 100) { p.rage = 0; p.fury = 8; say('ЯРОСТЬ!', 2); Sfx.play('rage'); shake = Math.max(shake, 9); burst(p.x, p.y - 30, '#ff3a1e', 22, 150); }
+  if (p.rage >= 100) { p.rage = 0; p.fury = 8; say(T('ЯРОСТЬ!'), 2); Sfx.play('rage'); shake = Math.max(shake, 9); burst(p.x, p.y - 30, '#ff3a1e', 22, 150); }
 }
 function floatText(x, y, text, col = '#f4eee0', big = false) { floats.push({ x, y, text, col, big, life: big ? 1 : 0.75, max: big ? 1 : 0.75 }); }
 // single place where a mob takes damage from the hero
@@ -743,14 +770,14 @@ function attackMob(t) {
     arrows.push({ x: p.x, y: p.y - 30, vx: Math.cos(a) * 640, vy: Math.sin(a) * 640, life: 0.7, dmg: it.dmg * dmgMul() * fz * (crit ? 2 : 1), crit });
     removeItem('arrow', 1); useHand(1); p.cd = 0.62 / (fury() ? 1.35 : 1); p.swing = 0.2; Sfx.play('bow'); return;
   }
-  if (it && it.tool === 'bow' && !p.noArrowSaid) { p.noArrowSaid = true; say('Стрелы кончились!', 2); }
+  if (it && it.tool === 'bow' && !p.noArrowSaid) { p.noArrowSaid = true; say(T('Стрелы кончились!'), 2); }
   p.combo = G.t - (p.lastHit || -9) < 1.1 ? (p.combo || 0) + 1 : 1; p.lastHit = G.t;
   const fin = p.combo >= 3; if (fin) p.combo = 0;
   const base = (it && it.tool !== 'bow' ? (it.dmg || 10) : 10) * dmgMul() * fz, dmg = base * (fin ? 1.8 : 1) * (crit ? 2 : 1);
   p.slash = { t: 0.2, big: fin, a: Math.atan2(t.y - p.y, t.x - p.x) };
   if (fin) { // finisher: a wide sweep that hits everything around
     for (const m of G.mobs.slice()) if (m !== t && dist(p, m) < 100) hitMob(m, base * 0.9, { kb: 28 });
-    shake = Math.max(shake, 7); Sfx.play('heavy'); floatText(p.x, p.y - 84, 'КОМБО!', '#ff8a3a', true);
+    shake = Math.max(shake, 7); Sfx.play('heavy'); floatText(p.x, p.y - 84, T('КОМБО!'), '#ff8a3a', true);
   }
   hitMob(t, dmg, { kb: fin ? 32 : 12, crit });
   if (p.hand && !ITEMS[p.hand.id].timed) useHand(1);
@@ -781,9 +808,9 @@ function updateAction(dt, day) {
   // blood moon: every fifth night a horde keeps coming until dawn
   if (!G.dungeon && day % 5 === 0) {
     const pp = dayPhase();
-    if (pp > 0.58 && G.bloodWarn !== day) { G.bloodWarn = day; say('Луна наливается кровью...', 4); Sfx.play('warn'); }
+    if (pp > 0.58 && G.bloodWarn !== day) { G.bloodWarn = day; say(T('Луна наливается кровью...'), 4); Sfx.play('warn'); }
     if (pp > 0.72) {
-      if (G.bloodDay !== day) { G.bloodDay = day; G.bloodT = 0; say('КРОВАВАЯ ЛУНА! Продержись до рассвета.', 4.5); shake = 10; Sfx.play('rage'); }
+      if (G.bloodDay !== day) { G.bloodDay = day; G.bloodT = 0; say(T('КРОВАВАЯ ЛУНА! Продержись до рассвета.'), 4.5); shake = 10; Sfx.play('rage'); }
       G.bloodT = (G.bloodT || 0) - dt;
       if (G.bloodT <= 0 && G.mobs.filter(isHostile).length < 14) {
         G.bloodT = 13;
@@ -822,12 +849,12 @@ function interact(t) {
   p.face = t.x >= p.x ? 1 : -1;
   if (t.kind === 'drop') {
     const left = addItem(t.id, t.n, t.dur);
-    if (left === t.n) { say('Инвентарь полон'); p.cd = 0.6; return; }
+    if (left === t.n) { say(T('Инвентарь полон')); p.cd = 0.6; return; }
     if (left > 0) t.n = left; else G.drops.splice(G.drops.indexOf(t), 1);
     p.cd = 0.2; p.swing = 0.2; Sfx.play('pickup'); return;
   }
   if (t.kind === 'trap') {
-    if (t.caught) { t.caught = false; giveOrDrop('meat', 1); say('Попался!', 1.5); Sfx.play('pickup'); }
+    if (t.caught) { t.caught = false; giveOrDrop('meat', 1); say(T('Попался!'), 1.5); Sfx.play('pickup'); }
     else { G.traps.splice(G.traps.indexOf(t), 1); giveOrDrop('trap', 1); Sfx.play('pickup'); lockTarget = null; actionHeld = false; }
     p.cd = 0.5; p.swing = 0.2; return;
   }
@@ -840,7 +867,7 @@ function interact(t) {
   }
   const def = RES[t.type];
   if (def.tool) {
-    if (!p.hand || ITEMS[p.hand.id].tool !== def.tool) { say(def.tool === 'axe' ? 'Нужен топор' : 'Нужна кирка'); p.cd = 0.8; actionHeld && (lockTarget = null); return; }
+    if (!p.hand || ITEMS[p.hand.id].tool !== def.tool) { say(def.tool === 'axe' ? T('Нужен топор') : T('Нужна кирка')); p.cd = 0.8; actionHeld && (lockTarget = null); return; }
     t.hits += ITEMS[p.hand.id].power || 1; t.shake = 0.25; useHand(1); p.cd = 0.45; p.swing = 0.25; Sfx.play(t.type === 'tree' ? 'chop' : 'mine');
     burst(t.x, t.y - (t.type === 'tree' ? 30 : 5), t.type === 'tree' ? '#3d5a2a' : '#8a8a84', 5);
     if (t.hits >= def.hits) {
@@ -881,7 +908,7 @@ function killMob(m) {
     G.dungeon.cleared = true; spawnRes('stairs', m.x, m.y);
     for (let i = 0, n = 3 + G.dungeon.depth; i < n; i++) dropItem('ore', 1, undefined, m.x + rand(-30, 30), m.y + rand(-20, 20));
     dropItem('meat_c', 2, undefined, m.x, m.y + 20); burst(m.x, m.y - 30, '#ff7a30', 24, 140);
-    say('Страж пал. Ход вниз открыт.', 4); Sfx.play('crumble');
+    say(T('Страж пал. Ход вниз открыт.'), 4); Sfx.play('crumble');
   }
   G.mobs.splice(G.mobs.indexOf(m), 1); Sfx.play('kill');
 }
@@ -891,7 +918,7 @@ function hurtPlayer(dmg, ignoreArmor) {
   if (p.inv_t > 0) return;
   if (p.body && !ignoreArmor) {
     const abs = dmg * (ITEMS[p.body.id].absorb || 0.6); p.body.dur -= abs; dmg -= abs;
-    if (p.body.dur <= 0) { p.body = null; say('Броня развалилась'); }
+    if (p.body.dur <= 0) { p.body = null; say(T('Броня развалилась')); }
     invDirty = true;
   }
   p.hp -= dmg; p.inv_t = 0.4; hurtFlash = 0.35; shake = Math.max(shake, 8); p.combo = 0; Sfx.play(ignoreArmor ? 'dark' : 'hurt');
@@ -977,7 +1004,7 @@ function update(dt) {
 
   // ---- stats ----
   p.hunger -= 0.33 * (charOf().hungerMul || 1) * dt;
-  if (p.hunger <= 0) { p.hunger = 0; p.hp -= 1.4 * dt; if (!speech) say('Я умираю от голода!'); }
+  if (p.hunger <= 0) { p.hunger = 0; p.hp -= 1.4 * dt; if (!speech) say(T('Я умираю от голода!')); }
   else if (p.hunger > MAX.hunger * 0.66) p.hp = Math.min(MAX.hp, p.hp + 0.08 * dt);
   const lit = isLit(p.x, p.y), dk = darkness();
   let ds = 0;
@@ -989,15 +1016,15 @@ function update(dt) {
   // ---- darkness ----
   if (dk > 0.85 && !lit) {
     p.darkT = (p.darkT || 0) + dt;
-    if (p.darkT > 0.3 && p.darkT - dt <= 0.3) say('Слишком темно...');
+    if (p.darkT > 0.3 && p.darkT - dt <= 0.3) say(T('Слишком темно...'));
     if (p.darkT > 3) {
       p.darkHit = (p.darkHit || 0) - dt;
-      if (p.darkHit <= 0) { hurtPlayer(20, true); darkFlash = 0.6; p.darkHit = 1.8; say(pick(['Что-то царапнуло меня в темноте!', 'Нужен свет!', 'Оно рядом!'])); }
+      if (p.darkHit <= 0) { hurtPlayer(20, true); darkFlash = 0.6; p.darkHit = 1.8; say(pick([T('Что-то царапнуло меня в темноте!'), T('Нужен свет!'), T('Оно рядом!')])); }
     }
   } else { p.darkT = 0; p.darkHit = 0; }
 
   // ---- torch burn ----
-  if (p.hand && ITEMS[p.hand.id].timed) { p.hand.dur -= dt; if (p.hand.dur <= 0) { say(`${itemName(p.hand.id)} погас`); p.hand = null; } if ((G.t * 2 | 0) !== ((G.t - dt) * 2 | 0)) invDirty = true; }
+  if (p.hand && ITEMS[p.hand.id].timed) { p.hand.dur -= dt; if (p.hand.dur <= 0) { say(T('{0} погас', itemName(p.hand.id))); p.hand = null; } if ((G.t * 2 | 0) !== ((G.t - dt) * 2 | 0)) invDirty = true; }
 
   // ---- fires ----
   for (const f of G.fires) f.fuel = Math.max(0, f.fuel - dt * (f.type === 'firepit' ? 0.75 : 1));
@@ -1016,16 +1043,16 @@ function update(dt) {
     G.nightDay = day;
     const near = (type, r) => { const a = rand(0, 7); return spawnMob(type, clamp(p.x + Math.cos(a) * r, 30, WORLD - 30), clamp(p.y + Math.sin(a) * r, 30, WORLD - 30)); };
     for (let i = 0, n = 2 + Math.min(4, day >> 1); i < n; i++) near('bat', rand(450, 650));
-    if (day >= 4) { for (let i = 0, n = day >= 8 ? 2 : 1; i < n; i++) near('ghoul', 520); say('Земля шевелится... Что-то лезет наружу.', 3.5); }
+    if (day >= 4) { for (let i = 0, n = day >= 8 ? 2 : 1; i < n; i++) near('ghoul', 520); say(T('Земля шевелится... Что-то лезет наружу.'), 3.5); }
   }
   if (!G.dungeon && day % 3 === 0) {
     const pp = dayPhase();
-    if (pp > 0.55 && G.warnDay !== day) { G.warnDay = day; say('Вдали воют волки... Ночью они придут.', 3.5); Sfx.play('warn'); }
+    if (pp > 0.55 && G.warnDay !== day) { G.warnDay = day; say(T('Вдали воют волки... Ночью они придут.'), 3.5); Sfx.play('warn'); }
     if (pp > 0.74 && G.wolvesDay !== day) {
       G.wolvesDay = day;
       const n = Math.min(1 + Math.floor(day / 3), 6);
       for (let i = 0; i < n; i++) { const a = rand(0, 7); const w = spawnMob('wolf', clamp(p.x + Math.cos(a) * 650, 30, WORLD - 30), clamp(p.y + Math.sin(a) * 650, 30, WORLD - 30)); w.aggro = true; }
-      say('Они здесь!'); Sfx.play('warn');
+      say(T('Они здесь!')); Sfx.play('warn');
     }
   }
 
@@ -1088,7 +1115,7 @@ function update(dt) {
   // ---- ambient sound ----
   { let fk = 0; for (const f of G.fires) if (f.fuel > 0) fk = Math.max(fk, clamp(1 - dist(f, p) / 240, 0, 1));
     Sfx.tick(dt, { dark: dk, fire: fk, moving: p.moving });
-    if (dayPhase() < 0.04 && G.dawnDay !== day && G.t > DAY_LEN) { G.dawnDay = day; Sfx.play('dawn'); addXp(10); if (G.bloodDay === day - 1) { addXp(80); say('Кровавая луна позади. Ты выжил.', 4); } } }
+    if (dayPhase() < 0.04 && G.dawnDay !== day && G.t > DAY_LEN) { G.dawnDay = day; Sfx.play('dawn'); addXp(10); if (G.bloodDay === day - 1) { addXp(80); say(T('Кровавая луна позади. Ты выжил.'), 4); } } }
 
   // ---- autosave ----
   saveTimer -= dt; if (saveTimer <= 0) { saveTimer = 20; saveGame(); }
@@ -1672,11 +1699,11 @@ function drawHUD() {
   gauge(left + 112, top, p.san, MAX.san, '#6a4f8a', '🧠');
   { const lv = p.lvl || 1, k = clamp((p.xp || 0) / xpNeed(lv), 0, 1), bx = left - 22, by = top + 44, bw = 156; // experience bar
     ctx.fillStyle = INK; ctx.fillRect(bx - 1.5, by - 1.5, bw + 3, 9); ctx.fillStyle = '#4a4034'; ctx.fillRect(bx, by, bw, 6); ctx.fillStyle = '#c9a64a'; ctx.fillRect(bx, by, bw * k, 6);
-    ctx.font = 'bold 11px Georgia, serif'; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.strokeText('Ур. ' + lv, bx + bw + 6, by + 7); ctx.fillStyle = '#e8c77a'; ctx.fillText('Ур. ' + lv, bx + bw + 6, by + 7); ctx.textAlign = 'center'; }
+    ctx.font = 'bold 11px Georgia, serif'; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = INK; ctx.strokeText(T('Ур. ') + lv, bx + bw + 6, by + 7); ctx.fillStyle = '#e8c77a'; ctx.fillText(T('Ур. ') + lv, bx + bw + 6, by + 7); ctx.textAlign = 'center'; }
   { const bx = left - 22, by = top + 57, bw = 156, on = p.fury > 0, k = on ? p.fury / 8 : (p.rage || 0) / 100; // rage bar
     ctx.fillStyle = INK; ctx.fillRect(bx - 1.5, by - 1.5, bw + 3, 8); ctx.fillStyle = '#3a2420'; ctx.fillRect(bx, by, bw, 5);
     ctx.fillStyle = on ? (Math.sin(G.t * 14) > 0 ? '#ff5a2a' : '#ffb03a') : '#b02a1e'; ctx.fillRect(bx, by, bw * clamp(k, 0, 1), 5);
-    if (on || k > 0.02) { ctx.font = 'bold 11px Georgia, serif'; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = INK; const tx = on ? 'ЯРОСТЬ' : 'Ярость'; ctx.strokeText(tx, bx + bw + 6, by + 7); ctx.fillStyle = on ? '#ff7a3a' : '#c8605a'; ctx.fillText(tx, bx + bw + 6, by + 7); ctx.textAlign = 'center'; } }
+    if (on || k > 0.02) { ctx.font = 'bold 11px Georgia, serif'; ctx.textAlign = 'left'; ctx.lineWidth = 3; ctx.strokeStyle = INK; const tx = on ? T('ЯРОСТЬ') : T('Ярость'); ctx.strokeText(tx, bx + bw + 6, by + 7); ctx.fillStyle = on ? '#ff7a3a' : '#c8605a'; ctx.fillText(tx, bx + bw + 6, by + 7); ctx.textAlign = 'center'; } }
   // clock
   const cx = W - 92 - SAFE.r, cy = 38 + SAFE.t, r = 27;
   const seg = (a0, a1, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, -Math.PI / 2 + a0 * Math.PI * 2, -Math.PI / 2 + a1 * Math.PI * 2); ctx.closePath(); ctx.fill(); };
@@ -1687,7 +1714,7 @@ function drawHUD() {
   ctx.fillStyle = '#d9c9a0'; ctx.beginPath(); ctx.arc(cx, cy, 14, 0, 7); ctx.fill(); ctx.strokeStyle = '#1a1410'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#1a1410'; ctx.font = 'bold 12px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(dayNum(), cx, cy); ctx.textBaseline = 'alphabetic';
-  ctx.font = 'bold 11px Georgia, serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(60,40,20,.7)'; ctx.strokeText((G.dungeon ? 'Глубина ' + G.dungeon.depth : 'День'), cx, cy + r + 13); ctx.fillStyle = '#fffaf0'; ctx.fillText((G.dungeon ? 'Глубина ' + G.dungeon.depth : 'День'), cx, cy + r + 13);
+  ctx.font = 'bold 11px Georgia, serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(60,40,20,.7)'; ctx.strokeText((G.dungeon ? T('Глубина ') + G.dungeon.depth : T('День')), cx, cy + r + 13); ctx.fillStyle = '#fffaf0'; ctx.fillText((G.dungeon ? T('Глубина ') + G.dungeon.depth : T('День')), cx, cy + r + 13);
 }
 
 // ============================================================
@@ -1700,7 +1727,7 @@ function buildInvUI() {
   invEl.innerHTML = ''; slotEls = [];
   for (let i = 0; i < INV_SIZE + 2; i++) {
     const el = document.createElement('div'); el.className = 'slot';
-    if (i >= INV_SIZE) { el.classList.add('eq'); if (i === INV_SIZE) el.classList.add('sep'); const l = document.createElement('div'); l.className = 'lbl'; l.textContent = i === INV_SIZE ? 'Рука' : 'Тело'; el.appendChild(l); }
+    if (i >= INV_SIZE) { el.classList.add('eq'); if (i === INV_SIZE) el.classList.add('sep'); const l = document.createElement('div'); l.className = 'lbl'; l.textContent = i === INV_SIZE ? T('Рука') : T('Тело'); el.appendChild(l); }
     el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); slotTap(i, el); });
     invEl.appendChild(el); slotEls.push(el);
   }
@@ -1728,7 +1755,7 @@ function slotTap(i, el) {
   if (!s) { closePopup(); return; }
   if (openChest && i < INV_SIZE) { // move the whole stack into the open storage
     const left = chestPut(openChest, s);
-    if (left === s.n) say('Склад полон'); else { if (left > 0) s.n = left; else G.player.inv[i] = null; Sfx.play('pickup'); }
+    if (left === s.n) say(T('Склад полон')); else { if (left > 0) s.n = left; else G.player.inv[i] = null; Sfx.play('pickup'); }
     invDirty = true; renderChest(); closePopup(); return;
   }
   if (popupSlot === i) { closePopup(); return; }
@@ -1750,41 +1777,41 @@ function slotActions(i, s) {
   const p = G.player, def = ITEMS[s.id], acts = [];
   const take = () => { if (i < INV_SIZE) { s.n--; if (s.n <= 0) p.inv[i] = null; } };
   if (i >= INV_SIZE) {
-    acts.push(['Снять', () => { if (addItem(s.id, 1, s.dur) === 0) { if (i === INV_SIZE) p.hand = null; else p.body = null; } else say('Инвентарь полон'); }]);
-    acts.push(['Выбросить', () => { dropItem(s.id, 1, s.dur, p.x, p.y); if (i === INV_SIZE) p.hand = null; else p.body = null; }]);
+    acts.push([T('Снять'), () => { if (addItem(s.id, 1, s.dur) === 0) { if (i === INV_SIZE) p.hand = null; else p.body = null; } else say(T('Инвентарь полон')); }]);
+    acts.push([T('Выбросить'), () => { dropItem(s.id, 1, s.dur, p.x, p.y); if (i === INV_SIZE) p.hand = null; else p.body = null; }]);
     return acts;
   }
   const fire = nearFire();
-  if (def.cook && fire) acts.push(['Приготовить', () => { take(); giveOrDrop(def.cook, 1); burst(fire.x, fire.y, '#ffb347', 5); Sfx.play('cook'); }]);
-  if (def.food) acts.push(['Съесть', () => eat(i)]);
+  if (def.cook && fire) acts.push([T('Приготовить'), () => { take(); giveOrDrop(def.cook, 1); burst(fire.x, fire.y, '#ffb347', 5); Sfx.play('cook'); }]);
+  if (def.food) acts.push([T('Съесть'), () => eat(i)]);
   const anyFire = nearAnyFire();
-  if (def.fuel && anyFire) acts.push(['В костёр', () => { take(); anyFire.fuel = Math.min(anyFire.max, anyFire.fuel + def.fuel); burst(anyFire.x, anyFire.y, '#ffb347', 8); Sfx.play('fire'); }]);
-  if (def.slot) acts.push(['Экипировать', () => equip(i)]);
-  if (def.heart) acts.push(['Поглотить', () => { take(); p.bonusHp = (p.bonusHp || 0) + 25; applyStats(); p.hp = MAX.hp; say('Сила глубин! Здоровье +25 навсегда', 3.5); Sfx.play('dawn'); burst(p.x, p.y - 30, '#ff7a30', 18, 120); }]);
-  if (def.heal) acts.push(['Применить', () => { take(); p.hp = Math.min(MAX.hp, p.hp + def.heal); say('Полегчало.', 1.5); Sfx.play('equip'); }]);
-  if (def.plant) acts.push(['Посадить', () => { take(); G.res.push({ kind: 'res', uid: G.nextId++, type: 'tree', x: p.x + p.face * 30, y: p.y + 6, state: 'young', timer: DAY_LEN * rand(1.3, 1.8), hits: 0, s: rand(0.85, 1.2) }); Sfx.play('pick'); }]);
-  if (def.place === 'trap') acts.push(['Поставить', () => { take(); G.traps.push({ kind: 'trap', x: p.x + p.face * 30, y: p.y + 6, caught: false }); Sfx.play('equip'); }]);
-  if (def.sleep) acts.push(['Спать', () => trySleep(i)]);
-  acts.push(['Выбросить', () => { dropItem(s.id, s.n, s.dur, p.x, p.y); p.inv[i] = null; }]);
-  if (s.n > 1) acts.push(['Выбросить 1', () => { dropItem(s.id, 1, s.dur, p.x, p.y); take(); }]);
+  if (def.fuel && anyFire) acts.push([T('В костёр'), () => { take(); anyFire.fuel = Math.min(anyFire.max, anyFire.fuel + def.fuel); burst(anyFire.x, anyFire.y, '#ffb347', 8); Sfx.play('fire'); }]);
+  if (def.slot) acts.push([T('Экипировать'), () => equip(i)]);
+  if (def.heart) acts.push([T('Поглотить'), () => { take(); p.bonusHp = (p.bonusHp || 0) + 25; applyStats(); p.hp = MAX.hp; say(T('Сила глубин! Здоровье +25 навсегда'), 3.5); Sfx.play('dawn'); burst(p.x, p.y - 30, '#ff7a30', 18, 120); }]);
+  if (def.heal) acts.push([T('Применить'), () => { take(); p.hp = Math.min(MAX.hp, p.hp + def.heal); say(T('Полегчало.'), 1.5); Sfx.play('equip'); }]);
+  if (def.plant) acts.push([T('Посадить'), () => { take(); G.res.push({ kind: 'res', uid: G.nextId++, type: 'tree', x: p.x + p.face * 30, y: p.y + 6, state: 'young', timer: DAY_LEN * rand(1.3, 1.8), hits: 0, s: rand(0.85, 1.2) }); Sfx.play('pick'); }]);
+  if (def.place === 'trap') acts.push([T('Поставить'), () => { take(); G.traps.push({ kind: 'trap', x: p.x + p.face * 30, y: p.y + 6, caught: false }); Sfx.play('equip'); }]);
+  if (def.sleep) acts.push([T('Спать'), () => trySleep(i)]);
+  acts.push([T('Выбросить'), () => { dropItem(s.id, s.n, s.dur, p.x, p.y); p.inv[i] = null; }]);
+  if (s.n > 1) acts.push([T('Выбросить 1'), () => { dropItem(s.id, 1, s.dur, p.x, p.y); take(); }]);
   return acts;
 }
 let sleepFade = 0;
 function trySleep(i) {
   const p = G.player, day = dayNum();
-  if (phaseName() === 'day') return say('Ещё светло — не уснуть');
-  if (day % 5 === 0) return say('Кровавая луна... Не уснуть');
-  if (!nearFire(150)) return say('Нужен горящий костёр рядом');
-  if (G.mobs.some(m => isHostile(m) && dist(m, p) < 420)) return say('Слишком опасно, чтобы спать');
-  if (day % 3 === 0 && G.wolvesDay !== day) return say('Волки близко... Не уснуть');
-  if (p.hunger < 30) return say('Слишком голодно, чтобы спать');
+  if (phaseName() === 'day') return say(T('Ещё светло — не уснуть'));
+  if (day % 5 === 0) return say(T('Кровавая луна... Не уснуть'));
+  if (!nearFire(150)) return say(T('Нужен горящий костёр рядом'));
+  if (G.mobs.some(m => isHostile(m) && dist(m, p) < 420)) return say(T('Слишком опасно, чтобы спать'));
+  if (day % 3 === 0 && G.wolvesDay !== day) return say(T('Волки близко... Не уснуть'));
+  if (p.hunger < 30) return say(T('Слишком голодно, чтобы спать'));
   const target = day * DAY_LEN + DAY_LEN * 0.05, skip = target - G.t;
   G.t = target;
   for (const r of G.res) if (r.state !== 'ready') r.timer -= skip;
   for (const f of G.fires) f.fuel = Math.max(0, f.fuel - 60);
   p.hunger = Math.max(10, p.hunger - 40); p.san = Math.min(MAX.san, p.san + 70); p.hp = Math.min(MAX.hp, p.hp + 25);
   const s = p.inv[i]; s.n--; if (s.n <= 0) p.inv[i] = null;
-  G.dawnDay = dayNum(); sleepFade = 2.4; say('Утро. Я жив.', 3.5); Sfx.play('dawn');
+  G.dawnDay = dayNum(); sleepFade = 2.4; say(T('Утро. Я жив.'), 3.5); Sfx.play('dawn');
 }
 function quickUse(i) {
   const s = G.player.inv[i]; const def = ITEMS[s.id];
@@ -1794,7 +1821,7 @@ function eat(i) {
   const p = G.player, s = p.inv[i], f = ITEMS[s.id].food;
   p.hunger = clamp(p.hunger + f.h, 0, MAX.hunger); p.hp = clamp(p.hp + f.hp, 0, MAX.hp); p.san = clamp(p.san + f.s, 0, MAX.san);
   s.n--; if (s.n <= 0) p.inv[i] = null;
-  say(f.hp < 0 ? 'Фу, сырое...' : 'Ням.', 1.4); Sfx.play('eat');
+  say(f.hp < 0 ? T('Фу, сырое...') : T('Ням.'), 1.4); Sfx.play('eat');
   invDirty = true;
 }
 function equip(i) {
@@ -1806,9 +1833,9 @@ function equip(i) {
 //  Characters, experience levels
 // ============================================================
 const CHARS = {
-  wanderer: { name: 'Странник', desc: 'Крепок духом. Всего понемногу.', perks: ['Рассудок 200', 'Тьма пугает его меньше'], hp: 150, hunger: 150, san: 200, speed: 1, dmg: 1, wear: 1, sanLoss: 0.75, start: [], coat: '#3b3431', scarf: '#6e2a26', skin: '#e2d6c0' },
-  huntress: { name: 'Охотница', desc: 'Быстрая и опасная, но хрупкая.', perks: ['Скорость +15%', 'Урон +30%', 'Здоровье 120', 'Начинает с копьём'], hp: 120, hunger: 150, san: 170, speed: 1.15, dmg: 1.3, wear: 1, sanLoss: 1, start: [['spear', 1]], coat: '#34402e', scarf: '#8a7a5a', skin: '#d8c2a0' },
-  smith:    { name: 'Мастер', desc: 'Строитель и работяга. Ест за двоих.', perks: ['Здоровье 180', 'Инструменты служат вдвое дольше', 'Голод +20%', 'Начинает с топором'], hp: 180, hunger: 180, san: 150, speed: 0.95, dmg: 1.1, wear: 0.5, sanLoss: 1, hungerMul: 1.2, start: [['axe', 1]], coat: '#57463a', scarf: null, skin: '#cfae8a' },
+  wanderer: { name: T('Странник'), desc: T('Крепок духом. Всего понемногу.'), perks: [T('Рассудок 200'), T('Тьма пугает его меньше')], hp: 150, hunger: 150, san: 200, speed: 1, dmg: 1, wear: 1, sanLoss: 0.75, start: [], coat: '#3b3431', scarf: '#6e2a26', skin: '#e2d6c0' },
+  huntress: { name: T('Охотница'), desc: T('Быстрая и опасная, но хрупкая.'), perks: [T('Скорость +15%'), T('Урон +30%'), T('Здоровье 120'), T('Начинает с копьём')], hp: 120, hunger: 150, san: 170, speed: 1.15, dmg: 1.3, wear: 1, sanLoss: 1, start: [['spear', 1]], coat: '#34402e', scarf: '#8a7a5a', skin: '#d8c2a0' },
+  smith:    { name: T('Мастер'), desc: T('Строитель и работяга. Ест за двоих.'), perks: [T('Здоровье 180'), T('Инструменты служат вдвое дольше'), T('Голод +20%'), T('Начинает с топором')], hp: 180, hunger: 180, san: 150, speed: 0.95, dmg: 1.1, wear: 0.5, sanLoss: 1, hungerMul: 1.2, start: [['axe', 1]], coat: '#57463a', scarf: null, skin: '#cfae8a' },
 };
 const charOf = () => CHARS[G.player.char] || CHARS.wanderer;
 function applyStats() {
@@ -1821,7 +1848,7 @@ function addXp(n) {
   const p = G.player; p.xp = (p.xp || 0) + n; p.lvl = p.lvl || 1;
   while (p.xp >= xpNeed(p.lvl)) {
     p.xp -= xpNeed(p.lvl); p.lvl++; applyStats();
-    p.hp = Math.min(MAX.hp, p.hp + 40); say(`Уровень ${p.lvl}! Здоровье +10, урон +6%`, 3.5); Sfx.play('dawn'); burst(p.x, p.y - 30, '#e8c77a', 16, 110);
+    p.hp = Math.min(MAX.hp, p.hp + 40); say(T('Уровень {0}! Здоровье +10, урон +6%', p.lvl), 3.5); Sfx.play('dawn'); burst(p.x, p.y - 30, '#e8c77a', 16, 110);
   }
 }
 const MOB_XP = { rabbit: 5, boar: 20, wolf: 15, shade: 20, crawler: 12, warden: 120 };
@@ -1912,13 +1939,13 @@ function enterDungeon(depth) {
   for (let n = 3; n--;) { const s = spot(boss); spawnRes('ore', s.x, s.y); }
   G.res = G.res.filter(r => !blocked(r.x, r.y, 10));
   G.warped = true; buildDerived(); resetFx(); lockTarget = null; actionHeld = false;
-  say(depth === 1 ? 'Здесь темно и сыро. Нужен свет.' : `Глубина ${depth}. Становится хуже.`, 3.5); Sfx.play('dark');
+  say(depth === 1 ? T('Здесь темно и сыро. Нужен свет.') : T('Глубина {0}. Становится хуже.', depth), 3.5); Sfx.play('dark');
 }
 function leaveDungeon() {
   const p = G.player, o = G.over; if (!o) return;
   G.res = o.res; G.drops = o.drops; G.mobs = o.mobs; G.fires = o.fires; G.traps = o.traps; G.builds = o.builds;
   p.x = o.x; p.y = o.y + 46; G.over = null; G.dungeon = null;
-  G.warped = true; buildDerived(); resetFx(); lockTarget = null; actionHeld = false; say('Наконец-то небо.', 2.5);
+  G.warped = true; buildDerived(); resetFx(); lockTarget = null; actionHeld = false; say(T('Наконец-то небо.'), 2.5);
 }
 function resetFx() { eyes.length = 0; smoke.length = 0; fireflies.length = 0; particles.length = 0; shots.length = 0; spits.length = 0; floats.length = 0; arrows.length = 0; closeChest(); buildMode = null; }
 function spawnCaves() {
@@ -2096,13 +2123,13 @@ function drawMoreMob(m, flash, b) {
 // ============================================================
 const CELL = 40;
 const BUILDS = {
-  wall:  { name: 'Стена', half: 20, lv: [{ hp: 120, cost: { log: 2 } }, { hp: 300, cost: { rock: 4 } }, { hp: 600, cost: { rock: 6, log: 2 } }] },
-  door:  { name: 'Дверь', half: 20, door: true, lv: [{ hp: 100, cost: { log: 3, rope: 1 } }, { hp: 240, cost: { rock: 4 } }, { hp: 480, cost: { rock: 6, log: 2 } }] },
-  chest: { name: 'Склад', half: 15, lv: [{ hp: 80, cap: 8, cost: { log: 4 } }, { hp: 160, cap: 12, cost: { log: 4, rope: 1 } }, { hp: 300, cap: 16, cost: { rock: 6, log: 4 } }] },
-  tower: { name: 'Башня', half: 16, lv: [{ hp: 180, range: 230, dmg: 12, cd: 1.4, cost: { log: 6, rock: 4, rope: 2 } }, { hp: 360, range: 275, dmg: 20, cd: 1.1, cost: { rock: 8, flint: 4 } }, { hp: 600, range: 320, dmg: 30, cd: 0.8, cost: { rock: 12, flint: 6, rope: 2 } }] },
+  wall:  { name: T('Стена'), half: 20, lv: [{ hp: 120, cost: { log: 2 } }, { hp: 300, cost: { rock: 4 } }, { hp: 600, cost: { rock: 6, log: 2 } }] },
+  door:  { name: T('Дверь'), half: 20, door: true, lv: [{ hp: 100, cost: { log: 3, rope: 1 } }, { hp: 240, cost: { rock: 4 } }, { hp: 480, cost: { rock: 6, log: 2 } }] },
+  chest: { name: T('Склад'), half: 15, lv: [{ hp: 80, cap: 8, cost: { log: 4 } }, { hp: 160, cap: 12, cost: { log: 4, rope: 1 } }, { hp: 300, cap: 16, cost: { rock: 6, log: 4 } }] },
+  tower: { name: T('Башня'), half: 16, lv: [{ hp: 180, range: 230, dmg: 12, cd: 1.4, cost: { log: 6, rock: 4, rope: 2 } }, { hp: 360, range: 275, dmg: 20, cd: 1.1, cost: { rock: 8, flint: 4 } }, { hp: 600, range: 320, dmg: 30, cd: 0.8, cost: { rock: 12, flint: 6, rope: 2 } }] },
 };
 const FIREPIT_COST = { log: 2, rock: 8 };
-const LVL_NAME = ['', 'дерево', 'камень', 'укреплённая'];
+const LVL_NAME = ['', T('дерево'), T('камень'), T('укреплённая')];
 const hasCost = c => Object.keys(c).every(id => countItem(id) >= c[id]);
 const payCost = c => { for (const id in c) removeItem(id, c[id]); };
 const costText = c => Object.keys(c).map(id => `${itemName(id).toLowerCase()} ×${c[id]}`).join(', ');
@@ -2127,13 +2154,13 @@ function cellFree(c) {
 }
 function tryPlace() {
   const c = ghostCell(), def = BUILDS[buildMode], L = def.lv[0];
-  if (!cellFree(c)) return say('Здесь нельзя строить', 1.4);
-  if (!hasCost(L.cost)) return say('Не хватает: ' + costText(L.cost), 2);
+  if (!cellFree(c)) return say(T('Здесь нельзя строить'), 1.4);
+  if (!hasCost(L.cost)) return say(T('Не хватает: ') + costText(L.cost), 2);
   payCost(L.cost); addXp(3);
   G.builds.push({ kind: 'build', type: buildMode, x: c.x, y: c.y, lvl: 1, hp: L.hp, cd: 0, items: buildMode === 'chest' ? [] : undefined });
   burst(c.x, c.y, '#8a6a44', 6, 50); Sfx.play('chop');
 }
-function startBuild(type) { buildMode = type; craftEl.classList.add('hidden'); closePopup(); closeChest(); say(`${BUILDS[type].name}: встань рядом с местом и жми «Строить»`, 3); }
+function startBuild(type) { buildMode = type; craftEl.classList.add('hidden'); closePopup(); closeChest(); say(T('{0}: встань рядом с местом и жми «Строить»', BUILDS[type].name), 3); }
 function destroyBuild(b) {
   const i = G.builds.indexOf(b); if (i < 0) return;
   if (b.items) for (const s of b.items) if (s) dropItem(s.id, s.n, s.dur, b.x, b.y);
@@ -2184,15 +2211,15 @@ function openBuildMenu(b) {
   closePopup(); popupSlot = -2; popup.innerHTML = '';
   const acts = [], title = document.createElement('div'); title.className = 't';
   if (b.kind === 'fire') {
-    title.textContent = 'Костёр';
-    acts.push([`Улучшить до очага (${costText(FIREPIT_COST)})`, () => { if (!hasCost(FIREPIT_COST)) return say('Не хватает ресурсов'); payCost(FIREPIT_COST); b.type = 'firepit'; b.max = 300; b.fuel = Math.max(b.fuel, 180); Sfx.play('craft'); }]);
+    title.textContent = T('Костёр');
+    acts.push([T('Улучшить до очага ({0})', costText(FIREPIT_COST)), () => { if (!hasCost(FIREPIT_COST)) return say(T('Не хватает ресурсов')); payCost(FIREPIT_COST); b.type = 'firepit'; b.max = 300; b.fuel = Math.max(b.fuel, 180); Sfx.play('craft'); }]);
   } else {
     const def = BUILDS[b.type], L = def.lv[b.lvl - 1];
-    title.textContent = `${def.name} · ур. ${b.lvl} (${LVL_NAME[b.lvl]}) · ${Math.ceil(b.hp)}/${L.hp}`;
-    if (b.type === 'chest') acts.push(['Открыть', () => showChest(b)]);
-    if (b.lvl < 3) { const c = def.lv[b.lvl].cost; acts.push([`Улучшить (${costText(c)})`, () => { if (!hasCost(c)) return say('Не хватает ресурсов'); payCost(c); b.lvl++; b.hp = def.lv[b.lvl - 1].hp; burst(b.x, b.y - 20, '#e8c77a', 10, 80); Sfx.play('craft'); }]); }
-    if (b.hp < L.hp) { const c = b.lvl === 1 ? { log: 1 } : { rock: 1 }; acts.push([`Починить (${costText(c)})`, () => { if (!hasCost(c)) return say('Не хватает ресурсов'); payCost(c); b.hp = L.hp; Sfx.play('chop'); }]); }
-    acts.push(['Разобрать', () => { const c = def.lv[0].cost; for (const id in c) { const n = Math.floor(c[id] / 2); if (n) giveOrDrop(id, n); } destroyBuild(b); }]);
+    title.textContent = T('{0} · ур. {1} ({2}) · {3}/{4}', def.name, b.lvl, LVL_NAME[b.lvl], Math.ceil(b.hp), L.hp);
+    if (b.type === 'chest') acts.push([T('Открыть'), () => showChest(b)]);
+    if (b.lvl < 3) { const c = def.lv[b.lvl].cost; acts.push([T('Улучшить ({0})', costText(c)), () => { if (!hasCost(c)) return say(T('Не хватает ресурсов')); payCost(c); b.lvl++; b.hp = def.lv[b.lvl - 1].hp; burst(b.x, b.y - 20, '#e8c77a', 10, 80); Sfx.play('craft'); }]); }
+    if (b.hp < L.hp) { const c = b.lvl === 1 ? { log: 1 } : { rock: 1 }; acts.push([T('Починить ({0})', costText(c)), () => { if (!hasCost(c)) return say(T('Не хватает ресурсов')); payCost(c); b.hp = L.hp; Sfx.play('chop'); }]); }
+    acts.push([T('Разобрать'), () => { const c = def.lv[0].cost; for (const id in c) { const n = Math.floor(c[id] / 2); if (n) giveOrDrop(id, n); } destroyBuild(b); }]);
   }
   popup.appendChild(title);
   for (const [label, fn] of acts) {
@@ -2212,7 +2239,7 @@ function canvasTap(sx, sy) {
   for (const b of G.builds) { const dx = Math.abs(b.x - wx), dy = wy - b.y; if (dx < 26 && dy > -75 && dy < 22) { const d = dx + Math.abs(dy + 20); if (d < bd) { bd = d; best = b; } } }
   if (!best) for (const f of G.fires) if (f.type === 'campfire' && Math.abs(f.x - wx) < 30 && Math.abs(f.y - 10 - wy) < 30) best = f;
   if (!best) return;
-  if (dist(best, G.player) > 150) return say('Слишком далеко', 1.2);
+  if (dist(best, G.player) > 150) return say(T('Слишком далеко'), 1.2);
   openBuildMenu(best);
 }
 
@@ -2230,14 +2257,14 @@ function chestPut(b, s) { // returns how many did not fit
 function renderChest() {
   const b = openChest; if (!b) return;
   const cap = BUILDS.chest.lv[b.lvl - 1].cap;
-  document.getElementById('chestTitle').textContent = `Склад · ур. ${b.lvl} · ${b.items.filter(Boolean).length}/${cap}`;
+  document.getElementById('chestTitle').textContent = T('Склад · ур. {0} · {1}/{2}', b.lvl, b.items.filter(Boolean).length, cap);
   chestSlots.innerHTML = '';
   for (let i = 0; i < cap; i++) {
     const el = document.createElement('div'); el.className = 'slot'; const s = b.items[i];
     if (s) {
       const img = document.createElement('img'); img.src = iconURL(s.id); el.appendChild(img);
       if (s.n > 1) { const n = document.createElement('div'); n.className = 'n'; n.textContent = s.n; el.appendChild(n); }
-      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const left = addItem(s.id, s.n, s.dur); if (left === s.n) return say('Инвентарь полон'); if (left > 0) s.n = left; else b.items[i] = null; Sfx.play('pickup'); renderChest(); });
+      el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); const left = addItem(s.id, s.n, s.dur); if (left === s.n) return say(T('Инвентарь полон')); if (left > 0) s.n = left; else b.items[i] = null; Sfx.play('pickup'); renderChest(); });
     }
     chestSlots.appendChild(el);
   }
@@ -2332,14 +2359,14 @@ function renderRecipes() {
     const row = document.createElement('div'); row.className = 'rec';
     const img = document.createElement('img'); img.src = iconURL(r.id); row.appendChild(img);
     const info = document.createElement('div'); info.className = 'info';
-    info.innerHTML = `<div class="nm">${itemName(r.id)}</div><div class="ds">${r.desc}${r.nearFire ? ' (у огня)' : ''}</div>`;
+    info.innerHTML = `<div class="nm">${itemName(r.id)}</div><div class="ds">${r.desc}${r.nearFire ? T(' (у огня)') : ''}</div>`;
     const need = document.createElement('div'); need.className = 'need';
     for (const id in r.need) {
       const have = countItem(id), sp = document.createElement('span'); sp.className = have >= r.need[id] ? 'ok' : 'no';
       sp.innerHTML = `<img src="${iconURL(id)}">${Math.min(have, 99)}/${r.need[id]}`; sp.title = itemName(id); need.appendChild(sp);
     }
     info.appendChild(need); row.appendChild(info);
-    const b = document.createElement('button'); b.textContent = r.build ? 'Строить' : 'Создать'; b.disabled = !canCraft(r);
+    const b = document.createElement('button'); b.textContent = r.build ? T('Строить') : T('Создать'); b.disabled = !canCraft(r);
     b.addEventListener('click', () => r.build ? startBuild(r.id) : craft(r)); row.appendChild(b);
     recipesEl.appendChild(row);
   }
@@ -2352,7 +2379,7 @@ function craft(r) {
   if (r.place) {
     const max = r.id === 'firepit' ? 300 : 180;
     G.fires.push({ kind: 'fire', type: r.id, x: clamp(p.x + p.face * 45, 30, WORLD - 30), y: p.y + 10, fuel: max * 0.6, max });
-    say('Тепло...', 1.5); Sfx.play('fire');
+    say(T('Тепло...'), 1.5); Sfx.play('fire');
   } else { giveOrDrop(r.id, r.n || 1, ITEMS[r.id].dur); Sfx.play('craft'); addXp(2); }
   invDirty = true;
 }
@@ -2401,7 +2428,7 @@ function gameOver() {
   running = false; clearSave(); hud.classList.add('hidden'); craftEl.classList.add('hidden'); closePopup();
   const d = dayNum();
   let best = 0; try { best = +localStorage.getItem('darkthicket_best') || 0; if (d > best) { best = d; localStorage.setItem('darkthicket_best', d); } } catch (_) {}
-  $('overText').textContent = `${charOf().name}, уровень ${G.player.lvl || 1}. ` + `Ты продержался ${d} ${d % 10 === 1 && d % 100 !== 11 ? 'день' : (d % 10 >= 2 && d % 10 <= 4 && (d % 100 < 10 || d % 100 >= 20)) ? 'дня' : 'дней'}. Рекорд: ${best}.`;
+  $('overText').textContent = T('{0}, уровень {1}. ', charOf().name, G.player.lvl || 1) + T('Ты продержался {0}. Рекорд: {1}.', dayWord(d), best);
   over.classList.remove('hidden');
 }
 $('newBtn').addEventListener('click', showChars);
@@ -2421,7 +2448,7 @@ function showChars() {
 $('pauseBtn').addEventListener('click', pauseGame);
 $('resumeBtn').addEventListener('click', () => { pauseScr.classList.add('hidden'); running = true; Sfx.resume(); });
 const soundBtn = $('soundBtn');
-const soundLabel = () => { soundBtn.textContent = Sfx.muted ? 'Звук: выкл' : 'Звук: вкл'; };
+const soundLabel = () => { soundBtn.textContent = Sfx.muted ? T('Звук: выкл') : T('Звук: вкл'); };
 soundBtn.addEventListener('click', () => { Sfx.toggle(); soundLabel(); });
 soundLabel();
 $('saveExitBtn').addEventListener('click', () => { saveGame(); showMenu(); });
@@ -2433,7 +2460,7 @@ function frame(now) {
   if (G && running && !portraitMQ.matches) {
     if (hitStop > 0) hitStop -= dt; else update(dt);
     if (invDirty) { invDirty = false; refreshInv(); }
-    actBtn.textContent = buildMode ? 'Строить' : actionLabel(G.hint);
+    actBtn.textContent = buildMode ? T('Строить') : actionLabel(G.hint);
     dashBtnEl.style.opacity = G.player.dashCd > 0 ? 0.35 : 1;
     craftBtnEl.textContent = buildMode ? '✕' : '⚒';
   }
