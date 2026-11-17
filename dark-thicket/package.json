@@ -2,7 +2,7 @@
   "name": "dark-thicket",
   "version": "1.0.0",
   "private": true,
-  "description": "Шёпот леса — survival game for Android",
+  "description": "Последний костёр — survival game for Android",
   "scripts": {
     "serve": "python3 -m http.server 8080 --directory www",
     "android:add": "cap add android",
